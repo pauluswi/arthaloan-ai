@@ -31,8 +31,9 @@ question.
 5. Open the **Collection Workbench**. Review the ranked overdue worklist,
    overdue amount, DPD, risk signal, priority factors, and policy version;
    open a loan for investigation.
-6. As a seeded Collection Officer, record a simulated activity and
-   outcome. Verify that the activity is persisted and audited; no
+6. Record a simulated activity and outcome on the loan detail page.
+   Verify that its timestamp, demo actor, and details appear in activity
+   history. These entries last only for the current server run; no
    borrower is contacted and no adverse action is triggered.
 7. Ask the assistant: “Which segment contributed most to the increase
    in PAR 30 during this period?” Verify the response uses the analytics

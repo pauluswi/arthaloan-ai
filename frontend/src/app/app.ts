@@ -1,6 +1,7 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, exhaustMap, map, of, switchMap, timeout, timer } from 'rxjs';
 
@@ -133,6 +134,18 @@ interface CollectionWorklist {
   }[];
 }
 
+interface CollectionActivity {
+  activityId: string;
+  loanId: string;
+  activityType: 'ACCOUNT_REVIEW' | 'SIMULATED_CONTACT_ATTEMPT' | 'FOLLOW_UP';
+  outcome: 'ACCOUNT_REVIEWED' | 'NO_RESPONSE_SIMULATED' | 'PROMISE_TO_PAY' | 'FOLLOW_UP_REQUIRED' | 'PAYMENT_REPORTED' | 'DISPUTE_REPORTED';
+  recordedAt: string;
+  recordedBy: string;
+  followUpDate: string | null;
+  promisedAmount: number | null;
+  notes: string | null;
+}
+
 interface PortfolioAnalytics {
   periodStart: string;
   periodEnd: string;
@@ -184,11 +197,37 @@ interface PortfolioAnalytics {
   };
 }
 
-type View = 'overview' | 'portfolio' | 'loan-detail' | 'collections';
+interface AssistantAnswer {
+  status: 'ANSWERED' | 'UNSUPPORTED' | 'INSUFFICIENT_DATA';
+  question: string;
+  answer: string;
+  generatedAt: string;
+  provenance: {
+    source: string;
+    metricDefinition: string | null;
+    periodStart: string | null;
+    periodEnd: string | null;
+    asOfDate: string | null;
+    filters: {
+      productId: string | null;
+      segment: string | null;
+      region: string | null;
+      loanStatus: string | null;
+    };
+  };
+  evidence: { label: string; value: string }[];
+}
+
+interface AssistantMessage {
+  question: string;
+  response: AssistantAnswer;
+}
+
+type View = 'overview' | 'portfolio' | 'loan-detail' | 'collections' | 'assistant';
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 @Component({
-  imports: [CurrencyPipe, DatePipe, DecimalPipe],
+  imports: [CurrencyPipe, DatePipe, DecimalPipe, FormsModule],
   selector: 'app-root',
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -208,6 +247,21 @@ export class App implements OnInit {
   protected readonly collectionWorklist = signal<CollectionWorklist | null>(null);
   protected readonly collectionState = signal<LoadState>('idle');
   protected readonly collectionError = signal('');
+  protected readonly assistantQuestion = signal('');
+  protected readonly assistantState = signal<LoadState>('idle');
+  protected readonly assistantError = signal('');
+  protected readonly assistantMessages = signal<AssistantMessage[]>([]);
+  protected readonly activityHistory = signal<CollectionActivity[]>([]);
+  protected readonly activityHistoryState = signal<LoadState>('idle');
+  protected readonly activityHistoryError = signal('');
+  protected readonly activitySaving = signal(false);
+  protected readonly activitySaveError = signal('');
+  protected readonly activitySaveSuccess = signal('');
+  protected readonly activityType = signal<CollectionActivity['activityType']>('ACCOUNT_REVIEW');
+  protected readonly activityOutcome = signal<CollectionActivity['outcome']>('ACCOUNT_REVIEWED');
+  protected readonly activityFollowUpDate = signal('');
+  protected readonly activityPromisedAmount = signal('');
+  protected readonly activityNotes = signal('');
   protected readonly listState = signal<LoadState>('idle');
   protected readonly detailState = signal<LoadState>('idle');
   protected readonly analytics = signal<PortfolioAnalytics | null>(null);
@@ -285,6 +339,57 @@ export class App implements OnInit {
     }
   }
 
+  protected showAssistant(): void {
+    this.view.set('assistant');
+    this.selectedLoan.set(null);
+  }
+
+  protected setAssistantPrompt(prompt: string): void {
+    this.assistantQuestion.set(prompt);
+  }
+
+  protected updateAssistantQuestion(event: Event): void {
+    if (event.target instanceof HTMLTextAreaElement) {
+      this.assistantQuestion.set(event.target.value);
+    }
+  }
+
+  protected askAssistant(): void {
+    const question = this.assistantQuestion().trim();
+    if (!question || this.assistantState() === 'loading') {
+      return;
+    }
+    this.assistantState.set('loading');
+    this.assistantError.set('');
+    const analytics = this.analytics();
+    this.http
+      .post<AssistantAnswer>('/api/demo/assistant/ask', {
+        question,
+        periodStart: analytics?.periodStart,
+        periodEnd: analytics?.periodEnd,
+        productId: this.selectedProduct() || null,
+        segment: this.selectedSegment() || null,
+        region: this.selectedRegion() || null,
+        loanStatus: this.selectedLoanStatus() || null,
+      })
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.assistantState.set('error');
+          this.assistantError.set('The assistant could not access portfolio analytics. Check the API connection and try again.');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((response) => {
+        if (response) {
+          this.assistantMessages.update((messages) => [{ question, response }, ...messages]);
+          this.assistantQuestion.set('');
+          this.assistantState.set('ready');
+        }
+      });
+  }
+
   protected openLoan(loanId: string): void {
     this.view.set('loan-detail');
     this.selectedLoan.set(null);
@@ -294,6 +399,17 @@ export class App implements OnInit {
     this.riskRequestLoanId.set(loanId);
     this.detailState.set('loading');
     this.errorMessage.set('');
+    this.activityHistory.set([]);
+    this.activityHistoryState.set('loading');
+    this.activityHistoryError.set('');
+    this.activitySaveError.set('');
+    this.activitySaveSuccess.set('');
+    this.activityType.set('ACCOUNT_REVIEW');
+    this.activityOutcome.set('ACCOUNT_REVIEWED');
+    this.activityFollowUpDate.set('');
+    this.activityPromisedAmount.set('');
+    this.activityNotes.set('');
+    this.loadCollectionActivities(loanId);
     this.http
       .get<LoanDetail>(`/api/demo/loans/${encodeURIComponent(loanId)}`)
       .pipe(
@@ -378,6 +494,88 @@ export class App implements OnInit {
     }
   }
 
+  protected updateActivityType(event: Event): void {
+    if (event.target instanceof HTMLSelectElement) {
+      const value = event.target.value;
+      if (value === 'ACCOUNT_REVIEW'
+        || value === 'SIMULATED_CONTACT_ATTEMPT'
+        || value === 'FOLLOW_UP') {
+        this.activityType.set(value);
+      }
+    }
+  }
+
+  protected updateActivityOutcome(event: Event): void {
+    if (event.target instanceof HTMLSelectElement) {
+      const value = event.target.value;
+      if (value === 'ACCOUNT_REVIEWED'
+        || value === 'NO_RESPONSE_SIMULATED'
+        || value === 'PROMISE_TO_PAY'
+        || value === 'FOLLOW_UP_REQUIRED'
+        || value === 'PAYMENT_REPORTED'
+        || value === 'DISPUTE_REPORTED') {
+        this.activityOutcome.set(value);
+      }
+    }
+  }
+
+  protected updateActivityFollowUpDate(event: Event): void {
+    if (event.target instanceof HTMLInputElement) {
+      this.activityFollowUpDate.set(event.target.value);
+    }
+  }
+
+  protected updateActivityPromisedAmount(event: Event): void {
+    if (event.target instanceof HTMLInputElement) {
+      this.activityPromisedAmount.set(event.target.value);
+    }
+  }
+
+  protected updateActivityNotes(event: Event): void {
+    if (event.target instanceof HTMLTextAreaElement) {
+      this.activityNotes.set(event.target.value);
+    }
+  }
+
+  protected recordCollectionActivity(loanId: string): void {
+    if (this.activitySaving()) {
+      return;
+    }
+    this.activitySaving.set(true);
+    this.activitySaveError.set('');
+    this.activitySaveSuccess.set('');
+    const rawAmount = this.activityPromisedAmount().trim();
+    const promisedAmount = rawAmount ? Number(rawAmount) : null;
+    this.http
+      .post<CollectionActivity>(`/api/demo/loans/${encodeURIComponent(loanId)}/collection-activities`, {
+        activityType: this.activityType(),
+        outcome: this.activityOutcome(),
+        followUpDate: this.activityFollowUpDate() || null,
+        promisedAmount,
+        notes: this.activityNotes().trim() || null,
+      })
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError((error: unknown) => {
+          const reason = error instanceof HttpErrorResponse && error.status === 400
+            ? 'The activity details were rejected. Check required promise and follow-up fields.'
+            : 'Could not save this activity. Check the API connection and try again.';
+          this.activitySaveError.set(reason);
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((activity) => {
+        this.activitySaving.set(false);
+        if (activity) {
+          this.activityHistory.update((activities) => [activity, ...activities]);
+          this.activitySaveSuccess.set('Simulated activity recorded in this demo session.');
+          this.activityNotes.set('');
+          this.activityPromisedAmount.set('');
+        }
+      });
+  }
+
   protected applyAnalyticsFilters(): void {
     const month = this.selectedMonth();
     const params = new URLSearchParams();
@@ -448,6 +646,26 @@ export class App implements OnInit {
         if (worklist) {
           this.collectionWorklist.set(worklist);
           this.collectionState.set('ready');
+        }
+      });
+  }
+
+  private loadCollectionActivities(loanId: string): void {
+    this.http
+      .get<CollectionActivity[]>(`/api/demo/loans/${encodeURIComponent(loanId)}/collection-activities`)
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.activityHistoryState.set('error');
+          this.activityHistoryError.set('Collection activity history could not be loaded.');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((activities) => {
+        if (activities) {
+          this.activityHistory.set(activities);
+          this.activityHistoryState.set('ready');
         }
       });
   }

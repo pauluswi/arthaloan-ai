@@ -24,6 +24,10 @@
         <span class="nav-icon" aria-hidden="true">☷</span>
         Collections
       </button>
+      <button class="nav-item" [class.active]="view() === 'assistant'" [attr.aria-current]="view() === 'assistant' ? 'page' : null" (click)="showAssistant()">
+        <span class="nav-icon" aria-hidden="true">✧</span>
+        Analytics assistant
+      </button>
     </nav>
 
     <div class="sidebar-bottom">
@@ -40,6 +44,7 @@
           @case ('overview') { Overview }
           @case ('portfolio') { Loan portfolio }
           @case ('collections') { Collections }
+          @case ('assistant') { Analytics assistant }
           @case ('loan-detail') {
             <button type="button" class="breadcrumb-link" (click)="backToPortfolio()">Loan portfolio</button>
             <span>/</span>
@@ -277,6 +282,81 @@
           </div>
           <p class="table-footnote">DPD is calendar days from the oldest unpaid installment due date to {{ loans()[0]?.asOfDate | date: 'mediumDate' }}. Synthetic demonstration data only.</p>
         }
+      } @else if (view() === 'assistant') {
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">GROUNDED PORTFOLIO Q&amp;A</div>
+            <h1>Analytics assistant</h1>
+            <p class="page-subtitle">Ask about the selected synthetic portfolio using approved, deterministic metrics.</p>
+          </div>
+          <span class="as-of-badge">No external AI model</span>
+        </div>
+
+        <div class="foundation-notice assistant-notice" role="note">
+          <span class="notice-icon" aria-hidden="true">i</span>
+          <span><strong>Demo assistant</strong> — answers are produced from allowlisted analytics, not an LLM. No account-level personal data or actions are available.</span>
+        </div>
+
+        <section class="panel assistant-composer">
+          <label for="assistant-question">What would you like to know?</label>
+          <textarea
+            id="assistant-question"
+            rows="3"
+            maxlength="500"
+            [value]="assistantQuestion()"
+            (input)="updateAssistantQuestion($event)"
+            placeholder="For example: What is PAR 30?"
+            [disabled]="assistantState() === 'loading'"></textarea>
+          <div class="assistant-composer-footer">
+            <span>Answers include metric definitions, reporting dates, filters, and source.</span>
+            <button class="primary-button" type="button" (click)="askAssistant()" [disabled]="!assistantQuestion().trim() || assistantState() === 'loading'">
+              {{ assistantState() === 'loading' ? 'Analyzing…' : 'Ask question' }}
+            </button>
+          </div>
+          <div class="assistant-prompts" aria-label="Example questions">
+            <button type="button" (click)="setAssistantPrompt('Give me a portfolio summary')">Portfolio summary</button>
+            <button type="button" (click)="setAssistantPrompt('What is PAR 30?')">What is PAR 30?</button>
+            <button type="button" (click)="setAssistantPrompt('Which segment contributes most to PAR 30?')">Top PAR 30 segment</button>
+            <button type="button" (click)="setAssistantPrompt('Show the delinquency distribution')">Delinquency distribution</button>
+          </div>
+        </section>
+
+        @if (assistantState() === 'error') {
+          <div class="panel state-panel error-state" role="alert">
+            <strong>Assistant unavailable</strong>
+            <span>{{ assistantError() }}</span>
+          </div>
+        }
+
+        @for (message of assistantMessages(); track message.response.generatedAt) {
+          <article class="panel assistant-answer" [class.assistant-answer-limited]="message.response.status !== 'ANSWERED'">
+            <div class="assistant-question-label">YOU ASKED</div>
+            <h2>{{ message.question }}</h2>
+            <p class="assistant-answer-text">{{ message.response.answer }}</p>
+            @if (message.response.evidence.length > 0) {
+              <div class="assistant-evidence">
+                @for (item of message.response.evidence; track item.label) {
+                  <div><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
+                }
+              </div>
+            }
+            <div class="assistant-provenance">
+              @if (message.response.provenance.periodStart && message.response.provenance.periodEnd) {
+                <span>Reporting period: {{ message.response.provenance.periodStart | date: 'mediumDate' }} – {{ message.response.provenance.periodEnd | date: 'mediumDate' }}</span>
+              }
+              @if (message.response.provenance.asOfDate) {
+                <span>Snapshot: {{ message.response.provenance.asOfDate | date: 'mediumDate' }}</span>
+              }
+              <span>Filters: product {{ message.response.provenance.filters.productId ?? 'all' }}, segment {{ message.response.provenance.filters.segment ?? 'all' }}, region {{ message.response.provenance.filters.region ?? 'all' }}, status {{ message.response.provenance.filters.loanStatus ?? 'all' }}</span>
+              @if (message.response.provenance.metricDefinition) {
+                <span>Definition: {{ message.response.provenance.metricDefinition }}</span>
+              }
+              <span>Source: {{ message.response.provenance.source }}</span>
+            </div>
+          </article>
+        } @empty {
+          <div class="assistant-empty">Try a suggested question to explore the current portfolio snapshot.</div>
+        }
       } @else if (view() === 'collections') {
         <div class="page-heading">
           <div>
@@ -428,6 +508,88 @@
                 <p class="risk-no-factors">{{ prediction.eligibilityReason }}</p>
               }
               <p class="risk-disclaimer">{{ prediction.scoreDescription }} This synthetic demo score is decision support only and must not be used for lending or collection decisions.</p>
+            }
+          </section>
+
+          <section class="panel activity-panel" aria-label="Record simulated collection activity">
+            <div class="panel-heading">
+              <div><h2>Collection activity</h2><p>Record a simulated review or outcome. This does not contact the borrower.</p></div>
+              <span class="count-badge">Demo session only</span>
+            </div>
+            <form class="activity-form" (ngSubmit)="recordCollectionActivity(detail.loan.loanId)">
+              <label class="activity-field">
+                <span>Activity type</span>
+                <select [value]="activityType()" (change)="updateActivityType($event)">
+                  <option value="ACCOUNT_REVIEW">Account review</option>
+                  <option value="SIMULATED_CONTACT_ATTEMPT">Simulated contact attempt</option>
+                  <option value="FOLLOW_UP">Follow-up</option>
+                </select>
+              </label>
+              <label class="activity-field">
+                <span>Outcome</span>
+                <select [value]="activityOutcome()" (change)="updateActivityOutcome($event)">
+                  <option value="ACCOUNT_REVIEWED">Account reviewed</option>
+                  <option value="NO_RESPONSE_SIMULATED">No response (simulated)</option>
+                  <option value="PROMISE_TO_PAY">Promise to pay (simulated)</option>
+                  <option value="FOLLOW_UP_REQUIRED">Follow-up required</option>
+                  <option value="PAYMENT_REPORTED">Payment reported</option>
+                  <option value="DISPUTE_REPORTED">Dispute reported</option>
+                </select>
+              </label>
+              @if (activityOutcome() === 'PROMISE_TO_PAY') {
+                <label class="activity-field">
+                  <span>Promised amount ({{ detail.currency }})</span>
+                  <input type="number" min="0.01" step="0.01" required [value]="activityPromisedAmount()" (input)="updateActivityPromisedAmount($event)">
+                </label>
+              }
+              @if (activityOutcome() === 'PROMISE_TO_PAY' || activityOutcome() === 'FOLLOW_UP_REQUIRED') {
+                <label class="activity-field">
+                  <span>Follow-up date</span>
+                  <input type="date" required [value]="activityFollowUpDate()" (input)="updateActivityFollowUpDate($event)">
+                </label>
+              }
+              <label class="activity-field activity-notes-field">
+                <span>Demo notes <small>(synthetic only, max 500 characters)</small></span>
+                <textarea maxlength="500" rows="2" [value]="activityNotes()" (input)="updateActivityNotes($event)" placeholder="Add a brief synthetic note"></textarea>
+              </label>
+              <div class="activity-submit">
+                <span class="activity-result" aria-live="polite">
+                  @if (activitySaveError()) { <span class="activity-error">{{ activitySaveError() }}</span> }
+                  @else if (activitySaveSuccess()) { {{ activitySaveSuccess() }} }
+                </span>
+                <button class="apply-button" type="submit" [disabled]="activitySaving()">{{ activitySaving() ? 'Saving…' : 'Record activity' }}</button>
+              </div>
+            </form>
+
+            <div class="activity-history-heading">
+              <h3>Activity history</h3>
+              <span class="count-badge">{{ activityHistory().length }} records</span>
+            </div>
+            @if (activityHistoryState() === 'loading') {
+              <div class="activity-empty" role="status">Loading activity history…</div>
+            } @else if (activityHistoryState() === 'error') {
+              <div class="activity-empty activity-error" role="alert">{{ activityHistoryError() }}</div>
+            } @else if (activityHistory().length === 0) {
+              <div class="activity-empty">No collection activities recorded for this loan in the current demo session.</div>
+            } @else {
+              <div class="table-scroll activity-table-wrap">
+                <table class="activity-table">
+                  <thead><tr><th>RECORDED</th><th>ACTIVITY</th><th>OUTCOME</th><th>PROMISE</th><th>FOLLOW-UP</th><th>RECORDED BY</th><th>NOTES</th></tr></thead>
+                  <tbody>
+                    @for (activity of activityHistory(); track activity.activityId) {
+                      <tr>
+                        <td>{{ activity.recordedAt | date: 'medium' }}</td>
+                        <td>{{ activity.activityType.replaceAll('_', ' ') }}</td>
+                        <td>{{ activity.outcome.replaceAll('_', ' ') }}</td>
+                        <td>@if (activity.promisedAmount !== null) { {{ activity.promisedAmount | currency: detail.currency : 'symbol' : '1.2-2' }} } @else { — }</td>
+                        <td>{{ activity.followUpDate ? (activity.followUpDate | date: 'mediumDate') : '—' }}</td>
+                        <td>{{ activity.recordedBy }}</td>
+                        <td class="activity-notes-cell">{{ activity.notes ?? '—' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
             }
           </section>
 

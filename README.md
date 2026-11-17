@@ -69,7 +69,8 @@ The portfolio is generated in memory with seed `20261117` and as-of date
 `ARTHALOAN_DEMO_AS_OF_DATE` when launching the backend. The generator
 includes performing, overdue, partial-payment, and reversal scenarios.
 
-Authentication, trained-model predictions, and collection activity recording
-are not implemented yet. Analytics, demo risk-score and worklist conventions,
-and generated-data limitations are described in
+Authentication and trained-model predictions are not implemented yet.
+Collection activity entries are kept in memory for the current server run
+and are cleared on restart. Analytics, demo risk-score and worklist
+conventions, and generated-data limitations are described in
 [`docs/data-dictionary.md`](docs/data-dictionary.md).

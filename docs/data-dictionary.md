@@ -123,6 +123,22 @@ then loan ID. The displayed review suggestion is advisory. This worklist
 does not assign real collection officers, record activities, or initiate
 borrower contact.
 
+## Simulated collection activity
+
+`GET /api/demo/loans/{loanId}/collection-activities` lists activities
+recorded during the current server run.
+`POST /api/demo/loans/{loanId}/collection-activities` records an account
+review, simulated contact attempt, or follow-up with an outcome. Promise
+to pay requires a positive promised amount and follow-up date; follow-up
+required also requires a date. Notes are limited to 500 characters.
+
+Each record includes a generated activity ID, timestamp, fixed demo
+actor (`demo-user`), outcome, and supplied promise/follow-up details.
+Records are held in application memory and cleared when the server
+restarts; this is not durable storage or a production audit log. Entries
+are accepted only for overdue loans. Simulated contact attempts do not
+send messages or contact borrowers. Use synthetic notes only.
+
 ## Limitations
 
 This generator is a deterministic demo fixture, not a financial

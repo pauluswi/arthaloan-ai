@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpRequest.BodyPublishers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -83,6 +84,37 @@ class DemoPortfolioControllerTest {
     }
 
     @Test
+    void recordsAndReadsSimulatedCollectionActivity() throws Exception {
+        String requestBody = """
+                {
+                  "activityType": "SIMULATED_CONTACT_ATTEMPT",
+                  "outcome": "PROMISE_TO_PAY",
+                  "followUpDate": "2026-11-15",
+                  "promisedAmount": 125.00,
+                  "notes": "Synthetic demo record"
+                }
+                """;
+        HttpResponse<String> created = post("/api/demo/loans/LN-002/collection-activities", requestBody);
+        JsonNode activity = objectMapper.readTree(created.body());
+
+        assertEquals(201, created.statusCode());
+        assertEquals("LN-002", activity.path("loanId").asText());
+        assertEquals("demo-user", activity.path("recordedBy").asText());
+
+        HttpResponse<String> historyResponse = get("/api/demo/loans/LN-002/collection-activities");
+        JsonNode history = objectMapper.readTree(historyResponse.body());
+        assertEquals(200, historyResponse.statusCode());
+        assertEquals(1, history.size());
+        assertEquals(activity.path("activityId").asText(), history.get(0).path("activityId").asText());
+
+        assertEquals(409, post(
+                "/api/demo/loans/LN-001/collection-activities",
+                """
+                {"activityType":"ACCOUNT_REVIEW","outcome":"ACCOUNT_REVIEWED"}
+                """).statusCode());
+    }
+
+    @Test
     void exposesPortfolioAnalyticsAndValidatesFilters() throws Exception {
         HttpResponse<String> response = get("/api/demo/analytics?segment=PRIME");
         JsonNode analytics = objectMapper.readTree(response.body());
@@ -102,6 +134,15 @@ class DemoPortfolioControllerTest {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:%d%s".formatted(port, path)))
                 .GET()
+                .build();
+        return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> post(String path, String body) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:%d%s".formatted(port, path)))
+                .header("Content-Type", "application/json")
+                .POST(BodyPublishers.ofString(body))
                 .build();
         return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
     }

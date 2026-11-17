@@ -1158,6 +1158,125 @@ td > strong {
   color: #9c5449;
 }
 
+.activity-panel {
+  margin-bottom: 14px;
+  padding: 18px;
+}
+
+.activity-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.activity-field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  color: #78867e;
+  font-size: 10px;
+}
+
+.activity-field small {
+  color: #9aa59e;
+  font-size: 9px;
+}
+
+.activity-field input,
+.activity-field select,
+.activity-field textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 9px;
+  border: 1px solid #e4ebe6;
+  border-radius: 6px;
+  background: #fff;
+  color: #4c5d52;
+  font: inherit;
+  font-size: 10px;
+}
+
+.activity-field textarea {
+  resize: vertical;
+}
+
+.activity-field input:focus-visible,
+.activity-field select:focus-visible,
+.activity-field textarea:focus-visible {
+  outline: 2px solid #78c596;
+  outline-offset: 1px;
+}
+
+.activity-notes-field,
+.activity-submit {
+  grid-column: 1 / -1;
+}
+
+.activity-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.activity-submit .apply-button {
+  min-width: 120px;
+}
+
+.activity-result {
+  color: #4d795a;
+  font-size: 10px;
+}
+
+.activity-error {
+  color: #a55047 !important;
+}
+
+.activity-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 14px 0 10px;
+  border-top: 1px solid #eef2ef;
+}
+
+.activity-history-heading h3 {
+  color: #3e4f44;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.activity-empty {
+  padding: 15px 4px;
+  color: #8a968e;
+  font-size: 10px;
+}
+
+.activity-table-wrap {
+  border: 1px solid #edf1ee;
+  border-radius: 6px;
+}
+
+.activity-table {
+  min-width: 900px;
+}
+
+.activity-table td {
+  height: auto;
+  min-height: 48px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  white-space: normal;
+}
+
+.activity-notes-cell {
+  max-width: 220px;
+  color: #7d8981;
+  line-height: 1.4;
+}
+
 .detail-metric-value {
   margin-top: 17px;
   color: #304337;
