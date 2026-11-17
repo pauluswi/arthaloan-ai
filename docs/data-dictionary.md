@@ -37,6 +37,25 @@ accounts one or more installments overdue; a partial payment; and a
 payment/reversal pair that preserves the original transaction and links
 the reversal using `reversesPaymentId`.
 
+## Loan investigation calculations
+
+The loan portfolio API (`GET /api/demo/loans`) and loan detail API
+(`GET /api/demo/loans/{loanId}`) calculate balances from allocations
+posted on or before the snapshot as-of date. Signed reversal allocations
+reduce the original payment's effect without deleting its record.
+
+- An installment is paid when its remaining scheduled amount is zero;
+  it is partially paid when a positive allocation leaves a positive
+  balance; future installments are scheduled.
+- DPD is the calendar-day difference between the as-of date and the
+  oldest installment with a positive remaining scheduled balance and a
+  due date on or before the as-of date. An installment due on the as-of
+  date has zero DPD.
+- Overdue amount is the remaining scheduled principal, interest, and
+  fees for installments with DPD greater than zero.
+- Outstanding principal is scheduled principal across the full loan
+  tenor less net posted principal allocations, bounded below by zero.
+
 ## Limitations
 
 This generator is a deterministic demo fixture, not a financial

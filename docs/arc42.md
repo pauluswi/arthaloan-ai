@@ -200,7 +200,24 @@ queries, or in-process events. Cyclic dependencies are prohibited.
    factors and model limitations. A later job associates the actual
    outcome for evaluation.
 
-### 6.3 Collection worklist and activity
+### 6.3 Loan investigation
+
+1. The user opens the loan portfolio; the backend returns synthetic
+   account summaries with customer/product references and computed
+   balances.
+2. The user selects an account. The application loads the loan,
+   customer, product, installment schedule, and payment history.
+3. The application nets allocations and reversals posted by the
+   snapshot as-of date. Each installment's remaining amount and status
+   are calculated from the resulting balance.
+4. DPD is the calendar-day difference from the oldest unpaid
+   installment's due date to the as-of date. A due date on the as-of
+   date has zero DPD; overdue amount includes unpaid due amounts only
+   for installments with DPD greater than zero.
+5. Unknown loan IDs return not found. The UI presents loading, empty,
+   and error states and labels the data as synthetic.
+
+### 6.4 Collection worklist and activity
 
 1. The Collections module gathers overdue state, exposure, risk signals,
    and versioned policy rules through approved interfaces.
@@ -211,7 +228,7 @@ queries, or in-process events. Cyclic dependencies are prohibited.
 4. The operation is validated, persisted, and audited. No borrower
    message or adverse action is executed.
 
-### 6.4 Grounded AI question
+### 6.5 Grounded AI question
 
 1. The assistant authenticates the user and creates an interaction
    context carrying their permissions and correlation ID.

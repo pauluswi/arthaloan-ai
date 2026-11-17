@@ -23,10 +23,10 @@ question.
 3. Filter by product or segment and inspect a repayment or delinquency
    trend. Confirm the period, USD currency, metric definitions, refresh
    time, and synthetic-data label are visible.
-4. Open a high-risk loan from the dashboard or risk view. Review its
-   schedule, payments, current DPD, prediction horizon, model version,
-   and contributing factors. The demo prediction provider may return a
-   stable fixture; show it as an illustrative estimate.
+4. Open **Loan Portfolio** and select a delinquent loan. Review its
+   schedule, posted payment allocations, reversals, outstanding
+   principal, overdue amount, and current DPD. The risk view and
+   prediction are planned for a later step.
 5. Open the **Collection Workbench** and locate the loan. Review the
    overdue amount, DPD, risk signal, priority factors, and policy
    version.

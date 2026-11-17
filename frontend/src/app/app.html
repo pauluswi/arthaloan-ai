@@ -1,21 +1,20 @@
 <div class="app-shell">
   <aside class="sidebar" aria-label="Main navigation">
-    <a class="brand" href="#overview" aria-label="ArthaLoan AI home">
+    <a class="brand" href="#overview" aria-label="ArthaLoan AI home" (click)="showOverview()">
       <span class="brand-mark" aria-hidden="true">A</span>
       <span class="brand-name">ArthaLoan<span>AI</span></span>
     </a>
 
     <div class="workspace-label">WORKSPACE</div>
     <nav>
-      <a class="nav-item active" href="#overview" aria-current="page">
+      <button class="nav-item" [class.active]="view() === 'overview'" [attr.aria-current]="view() === 'overview' ? 'page' : null" (click)="showOverview()">
         <span class="nav-icon" aria-hidden="true">▦</span>
         Overview
-      </a>
-      <span class="nav-item unavailable" aria-disabled="true">
+      </button>
+      <button class="nav-item" [class.active]="view() !== 'overview'" [attr.aria-current]="view() !== 'overview' ? 'page' : null" (click)="showPortfolio()">
         <span class="nav-icon" aria-hidden="true">▤</span>
         Loan portfolio
-        <span class="nav-soon">Soon</span>
-      </span>
+      </button>
       <span class="nav-item unavailable" aria-disabled="true">
         <span class="nav-icon" aria-hidden="true">⌁</span>
         Risk monitoring
@@ -34,99 +33,235 @@
     </div>
   </aside>
 
-  <main id="overview" class="main-content">
+  <main class="main-content">
     <header class="topbar">
-      <div class="breadcrumb">Workspace <span>/</span> Overview</div>
+      <div class="breadcrumb">
+        Workspace <span>/</span>
+        @switch (view()) {
+          @case ('overview') { Overview }
+          @case ('portfolio') { Loan portfolio }
+          @case ('loan-detail') {
+            <button type="button" class="breadcrumb-link" (click)="backToPortfolio()">Loan portfolio</button>
+            <span>/</span>
+            {{ selectedLoan()?.loan?.loanId ?? 'Loan detail' }}
+          }
+        }
+      </div>
       <div class="topbar-right">
-        <span class="currency-badge">USD <span>·</span> Demo currency</span>
+        <span class="currency-badge">{{ selectedLoan()?.currency ?? 'USD' }} <span>·</span> Demo currency</span>
         <span class="avatar" aria-label="Demo user">D</span>
       </div>
     </header>
 
     <section class="page-content">
-      <div class="page-heading">
-        <div>
-          <div class="eyebrow">PORTFOLIO INTELLIGENCE</div>
-          <h1>Good morning</h1>
-          <p class="page-subtitle">A clear view of portfolio health starts here.</p>
+      @if (view() === 'overview') {
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">PORTFOLIO INTELLIGENCE</div>
+            <h1>Good morning</h1>
+            <p class="page-subtitle">A clear view of portfolio health starts here.</p>
+          </div>
+          <button class="period-button" type="button" disabled>
+            <span aria-hidden="true">◷</span> Reporting period <span class="muted">—</span>
+          </button>
         </div>
-        <button class="period-button" type="button" disabled>
-          <span aria-hidden="true">◷</span> Reporting period <span class="muted">—</span>
-        </button>
-      </div>
 
-      <div class="foundation-notice" role="status">
-        <span class="notice-icon" aria-hidden="true">i</span>
-        <span><strong>Demo foundation</strong> — portfolio metrics will appear when the analytics step is implemented.</span>
-        <span class="notice-status" aria-live="polite">
-          @switch (apiStatus()) {
-            @case ('checking') { Checking API… }
-            @case ('online') { API connected }
-            @case ('offline') { API unavailable }
-          }
-        </span>
-        <span
-          class="status-dot"
-          [class.online]="apiStatus() === 'online'"
-          [class.offline]="apiStatus() === 'offline'"
-          aria-hidden="true"
-        ></span>
-      </div>
+        <div class="foundation-notice" role="status">
+          <span class="notice-icon" aria-hidden="true">i</span>
+          <span><strong>Demo foundation</strong> — portfolio metrics will appear when the analytics step is implemented.</span>
+          <span class="notice-status" aria-live="polite">
+            @switch (apiStatus()) {
+              @case ('checking') { Checking API… }
+              @case ('online') { API connected }
+              @case ('offline') { API unavailable }
+            }
+          </span>
+          <span class="status-dot" [class.online]="apiStatus() === 'online'" [class.offline]="apiStatus() === 'offline'" aria-hidden="true"></span>
+        </div>
 
-      <section class="metrics-grid" aria-label="Portfolio metrics not yet available">
-        <article class="metric-card">
-          <div class="metric-label">Outstanding principal <span class="metric-symbol">$</span></div>
-          <div class="metric-value">—</div>
-          <div class="metric-footnote">Waiting for portfolio data</div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-label">Scheduled this period <span class="metric-symbol">↗</span></div>
-          <div class="metric-value">—</div>
-          <div class="metric-footnote">Waiting for portfolio data</div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-label">Amount collected <span class="metric-symbol">↓</span></div>
-          <div class="metric-value">—</div>
-          <div class="metric-footnote">Waiting for portfolio data</div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-label">Repayment rate <span class="metric-symbol">%</span></div>
-          <div class="metric-value">—</div>
-          <div class="metric-footnote">Waiting for portfolio data</div>
-        </article>
-      </section>
+        <section class="metrics-grid" aria-label="Portfolio metrics not yet available">
+          <article class="metric-card">
+            <div class="metric-label">Outstanding principal <span class="metric-symbol">$</span></div>
+            <div class="metric-value">—</div>
+            <div class="metric-footnote">Waiting for portfolio data</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Scheduled this period <span class="metric-symbol">↗</span></div>
+            <div class="metric-value">—</div>
+            <div class="metric-footnote">Waiting for portfolio data</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Amount collected <span class="metric-symbol">↓</span></div>
+            <div class="metric-value">—</div>
+            <div class="metric-footnote">Waiting for portfolio data</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Repayment rate <span class="metric-symbol">%</span></div>
+            <div class="metric-value">—</div>
+            <div class="metric-footnote">Waiting for portfolio data</div>
+          </article>
+        </section>
 
-      <section class="lower-grid" aria-label="Analytics previews">
-        <article class="panel trend-panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Repayment performance</h2>
-              <p>Collection trends over time</p>
+        <section class="lower-grid" aria-label="Analytics previews">
+          <article class="panel trend-panel">
+            <div class="panel-heading">
+              <div><h2>Repayment performance</h2><p>Collection trends over time</p></div>
+              <span class="panel-menu" aria-hidden="true">···</span>
             </div>
-            <span class="panel-menu" aria-hidden="true">···</span>
-          </div>
-          <div class="empty-chart">
-            <span class="chart-icon" aria-hidden="true">⌁</span>
-            <strong>Analytics are on the way</strong>
-            <span>Trend data will be shown here once the synthetic portfolio is connected.</span>
-          </div>
-        </article>
-
-        <article class="panel health-panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Delinquency overview</h2>
-              <p>Portfolio at risk by DPD</p>
+            <div class="empty-chart">
+              <span class="chart-icon" aria-hidden="true">⌁</span>
+              <strong>Analytics are on the way</strong>
+              <span>Trend data will be shown here once portfolio metrics are implemented.</span>
             </div>
-            <span class="panel-menu" aria-hidden="true">···</span>
+          </article>
+          <article class="panel health-panel">
+            <div class="panel-heading">
+              <div><h2>Delinquency overview</h2><p>Portfolio at risk by DPD</p></div>
+              <span class="panel-menu" aria-hidden="true">···</span>
+            </div>
+            <div class="empty-health">
+              <div class="health-ring" aria-hidden="true"><span>—</span></div>
+              <strong>No portfolio metrics yet</strong>
+              <span>Delinquency distribution will appear here.</span>
+            </div>
+          </article>
+        </section>
+      } @else if (view() === 'portfolio') {
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">LOAN MANAGEMENT</div>
+            <h1>Loan portfolio</h1>
+            <p class="page-subtitle">Inspect accounts, repayment status, and balances as of the demo snapshot.</p>
           </div>
-          <div class="empty-health">
-            <div class="health-ring" aria-hidden="true"><span>—</span></div>
-            <strong>No portfolio data yet</strong>
-            <span>Delinquency distribution will appear here.</span>
+          <span class="as-of-badge">Synthetic · USD</span>
+        </div>
+
+        @if (listState() === 'loading' || listState() === 'idle') {
+          <div class="panel state-panel" role="status">Loading synthetic loan portfolio…</div>
+        } @else if (listState() === 'error') {
+          <div class="panel state-panel error-state" role="alert">
+            <strong>Portfolio unavailable</strong>
+            <span>{{ errorMessage() }}</span>
+            <button class="secondary-button" type="button" (click)="retryLoans()">Try again</button>
           </div>
-        </article>
-      </section>
+        } @else {
+          <div class="table-toolbar">
+            <div class="table-count"><strong>{{ filteredLoans().length }}</strong> of {{ loans().length }} demo accounts</div>
+            <label class="search-box">
+              <span aria-hidden="true">⌕</span>
+              <input type="search" placeholder="Search loans, customers, segments…" (input)="updateSearch($event)" aria-label="Search loans">
+            </label>
+          </div>
+          <div class="panel table-panel">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr><th>LOAN / CUSTOMER</th><th>PRODUCT</th><th>SEGMENT</th><th>OUTSTANDING</th><th>OVERDUE</th><th>DPD</th><th>STATUS</th><th><span class="sr-only">Open loan</span></th></tr>
+                </thead>
+                <tbody>
+                  @for (loan of filteredLoans(); track loan.loanId) {
+                    <tr>
+                      <td><strong>{{ loan.loanId }}</strong><span class="table-subtext">{{ loan.customerId }} · {{ loan.region }}</span></td>
+                      <td>{{ loan.productName }}</td>
+                      <td><span class="segment-badge">{{ loan.segment.replace('_', ' ') }}</span></td>
+                      <td>{{ loan.outstandingPrincipal | currency: loan.currency : 'symbol' : '1.2-2' }}</td>
+                      <td [class.amount-overdue]="loan.overdueAmount > 0">{{ loan.overdueAmount | currency: loan.currency : 'symbol' : '1.2-2' }}</td>
+                      <td><span class="dpd-badge" [class.delinquent]="loan.dpd > 0">{{ loan.dpd }} days</span></td>
+                      <td><span class="status-badge">{{ loan.status }}</span></td>
+                      <td><button class="open-link" type="button" (click)="openLoan(loan.loanId)" [attr.aria-label]="'Open loan ' + loan.loanId">View <span aria-hidden="true">→</span></button></td>
+                    </tr>
+                  } @empty {
+                    <tr><td class="empty-row" colspan="8">No loans match “{{ searchTerm() }}”.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="table-footnote">DPD is calendar days from the oldest unpaid installment due date to {{ loans()[0]?.asOfDate | date: 'mediumDate' }}. Synthetic demonstration data only.</p>
+        }
+      } @else {
+        @if (detailState() === 'loading') {
+          <div class="panel state-panel" role="status">Loading loan investigation…</div>
+        } @else if (detailState() === 'error') {
+          <div class="panel state-panel error-state" role="alert">
+            <strong>Loan unavailable</strong>
+            <span>{{ errorMessage() }}</span>
+            <button class="secondary-button" type="button" (click)="backToPortfolio()">Back to portfolio</button>
+          </div>
+        } @else if (selectedLoan(); as detail) {
+          <div class="page-heading detail-heading">
+            <div>
+              <button class="back-link" type="button" (click)="backToPortfolio()">← Loan portfolio</button>
+              <div class="eyebrow">LOAN INVESTIGATION</div>
+              <h1>{{ detail.loan.loanId }}</h1>
+              <p class="page-subtitle">{{ detail.product.name }} <span>·</span> {{ detail.customer.customerId }} <span>·</span> {{ detail.customer.segment.replace('_', ' ') }}</p>
+            </div>
+            <span class="as-of-badge">As of {{ detail.asOfDate | date: 'mediumDate' }}</span>
+          </div>
+
+          <section class="detail-metrics" aria-label="Loan summary">
+            <article class="metric-card"><div class="metric-label">Outstanding principal</div><div class="detail-metric-value">{{ detail.outstandingPrincipal | currency: detail.currency : 'symbol' : '1.2-2' }}</div><div class="metric-footnote">Original {{ detail.loan.principal | currency: detail.currency : 'symbol' : '1.2-2' }}</div></article>
+            <article class="metric-card"><div class="metric-label">Overdue amount</div><div class="detail-metric-value" [class.amount-overdue]="detail.overdueAmount > 0">{{ detail.overdueAmount | currency: detail.currency : 'symbol' : '1.2-2' }}</div><div class="metric-footnote">Unpaid scheduled amount as of date</div></article>
+            <article class="metric-card"><div class="metric-label">Days past due</div><div class="detail-metric-value" [class.amount-overdue]="detail.dpd > 0">{{ detail.dpd }} <span class="metric-unit">days</span></div><div class="metric-footnote">Oldest unpaid installment</div></article>
+            <article class="metric-card"><div class="metric-label">Interest / tenor</div><div class="detail-metric-value">{{ detail.loan.annualInterestRatePercent }}% <span class="metric-unit">· {{ detail.loan.tenorMonths }} mo</span></div><div class="metric-footnote">{{ detail.loan.originationDate | date: 'mediumDate' }} – {{ detail.loan.maturityDate | date: 'mediumDate' }}</div></article>
+          </section>
+
+          <section class="panel detail-panel">
+            <div class="panel-heading">
+              <div><h2>Repayment schedule</h2><p>Installment balances are calculated from payments and reversals posted by the as-of date.</p></div>
+              <span class="count-badge">{{ detail.installments.length }} installments</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>DUE DATE</th><th>PRINCIPAL</th><th>INTEREST</th><th>SCHEDULED</th><th>ALLOCATED</th><th>REMAINING</th><th>DPD</th><th>STATUS</th></tr></thead>
+                <tbody>
+                  @for (installment of detail.installments; track installment.installmentId) {
+                    <tr>
+                      <td><strong>{{ installment.dueDate | date: 'mediumDate' }}</strong><span class="table-subtext">{{ installment.installmentId }}</span></td>
+                      <td>{{ installment.principalDue | currency: detail.currency : 'symbol' : '1.2-2' }}</td>
+                      <td>{{ installment.interestDue | currency: detail.currency : 'symbol' : '1.2-2' }}</td>
+                      <td>{{ installment.scheduledAmount | currency: detail.currency : 'symbol' : '1.2-2' }}</td>
+                      <td>{{ installment.allocatedAmount | currency: detail.currency : 'symbol' : '1.2-2' }}</td>
+                      <td [class.amount-overdue]="installment.remainingAmount > 0 && installment.dpd > 0">{{ installment.remainingAmount | currency: detail.currency : 'symbol' : '1.2-2' }}</td>
+                      <td>{{ installment.dpd }}</td>
+                      <td><span class="installment-status" [class.status-unpaid]="installment.status === 'OVERDUE' || installment.status === 'PARTIALLY_PAID'" [class.status-future]="installment.status === 'SCHEDULED'">{{ installment.status.replace('_', ' ') }}</span></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel detail-panel payment-panel">
+            <div class="panel-heading">
+              <div><h2>Payment activity</h2><p>Original transactions are retained when reversed.</p></div>
+              <span class="count-badge">{{ detail.payments.length }} transactions</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>POSTED</th><th>TRANSACTION</th><th>ALLOCATION</th><th>AMOUNT</th><th>REFERENCE</th></tr></thead>
+                <tbody>
+                  @for (payment of detail.payments; track payment.paymentId) {
+                    <tr>
+                      <td>{{ payment.postingDate | date: 'mediumDate' }}</td>
+                      <td><strong>{{ payment.paymentId }}</strong><span class="table-subtext">{{ payment.type }}</span></td>
+                      <td>
+                        @for (allocation of payment.allocations; track allocation.installmentId) {
+                          <span class="allocation-detail">{{ allocation.installmentId }} · {{ allocation.principalAmount + allocation.interestAmount + allocation.feesAmount | currency: payment.currency : 'symbol' : '1.2-2' }}</span>
+                        }
+                      </td>
+                      <td [class.amount-reversal]="payment.type === 'REVERSAL'">{{ payment.amount | currency: payment.currency : 'symbol' : '1.2-2' }}</td>
+                      <td>{{ payment.reversesPaymentId ?? '—' }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td class="empty-row" colspan="5">No payments posted by the as-of date.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+      }
 
       <footer class="page-footer">
         <span><span class="footer-dot" aria-hidden="true"></span> Synthetic demo environment</span>

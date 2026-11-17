@@ -46,6 +46,10 @@ bank data to this repository or local showcase.
 - Java 25 / Spring Boot API with a health endpoint.
 - Repeatable synthetic demo portfolio available at
   `GET /api/demo/portfolio` (12 customers, 12 loans, 144 installments).
+- Loan list and investigation APIs at `GET /api/demo/loans` and
+  `GET /api/demo/loans/{loanId}`, including payment-aware DPD, schedule
+  balances, and reversal history.
+- Interactive portfolio search and loan detail screens in the dashboard.
 - One-command local startup without Docker; Docker Compose is optional.
 
 The portfolio is generated in memory with seed `20261117` and as-of date

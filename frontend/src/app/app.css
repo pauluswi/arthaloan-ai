@@ -69,15 +69,33 @@ nav {
   align-items: center;
   gap: 12px;
   padding: 0 12px;
+  border: 0;
   border-radius: 8px;
+  background: transparent;
   color: #bfd0c8;
+  cursor: pointer;
   font-size: 13px;
+  font-family: inherit;
+  text-align: left;
   text-decoration: none;
+  width: 100%;
 }
 
 .nav-item.active {
   background: #203d32;
   color: #fff;
+}
+
+.nav-item:focus-visible,
+.open-link:focus-visible,
+.back-link:focus-visible,
+.secondary-button:focus-visible {
+  outline: 2px solid #78c596;
+  outline-offset: 2px;
+}
+
+.nav-item.unavailable {
+  cursor: default;
 }
 
 .nav-icon {
@@ -463,6 +481,336 @@ h1 {
   color: #bdc7c0;
 }
 
+.as-of-badge,
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #e6ede8;
+  border-radius: 7px;
+  background: #fff;
+  color: #728078;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.state-panel {
+  display: flex;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #748179;
+  font-size: 12px;
+}
+
+.error-state {
+  flex-direction: column;
+  text-align: center;
+}
+
+.error-state strong {
+  color: #3a493f;
+  font-size: 14px;
+}
+
+.error-state > span {
+  color: #78867e;
+}
+
+.secondary-button {
+  min-height: 34px;
+  margin-top: 5px;
+  padding: 0 12px;
+  border: 1px solid #dfe8e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #315d42;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.table-count {
+  color: #859189;
+  font-size: 11px;
+}
+
+.table-count strong {
+  color: #3e5848;
+  font-size: 13px;
+}
+
+.search-box {
+  display: flex;
+  width: min(340px, 100%);
+  min-height: 37px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid #e3eae5;
+  border-radius: 7px;
+  background: #fff;
+  color: #809087;
+}
+
+.search-box:focus-within {
+  border-color: #9ac8a7;
+  box-shadow: 0 0 0 2px rgba(87, 155, 108, 0.1);
+}
+
+.search-box > span {
+  font-size: 18px;
+}
+
+.search-box input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #34443a;
+  font: inherit;
+  font-size: 11px;
+}
+
+.table-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  white-space: nowrap;
+}
+
+thead {
+  background: #f7f9f7;
+}
+
+th {
+  height: 39px;
+  padding: 0 14px;
+  border-bottom: 1px solid #e9eeeb;
+  color: #85928a;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.45px;
+}
+
+td {
+  height: 58px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #eef1ef;
+  color: #59685f;
+  font-size: 10px;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+tbody tr:hover {
+  background: #fbfcfb;
+}
+
+td > strong {
+  display: block;
+  color: #34483a;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.table-subtext {
+  display: block;
+  margin-top: 4px;
+  color: #97a29b;
+  font-size: 9px;
+}
+
+.segment-badge {
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: #f0f5f1;
+  color: #5d7464;
+  font-size: 9px;
+}
+
+.dpd-badge,
+.status-badge,
+.installment-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 0 7px;
+  border-radius: 5px;
+  background: #eff5f0;
+  color: #587361;
+  font-size: 9px;
+}
+
+.dpd-badge.delinquent,
+.status-unpaid {
+  background: #fff2e7;
+  color: #a4612a;
+}
+
+.amount-overdue {
+  color: #a65d30 !important;
+}
+
+.amount-reversal {
+  color: #a65d30;
+}
+
+.allocation-detail {
+  display: block;
+  color: #748179;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.open-link,
+.back-link,
+.breadcrumb-link {
+  border: 0;
+  background: transparent;
+  color: #39724b;
+  cursor: pointer;
+  font: inherit;
+}
+
+.open-link {
+  padding: 5px 0 5px 5px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.open-link span {
+  padding-left: 4px;
+}
+
+.empty-row {
+  height: 90px;
+  color: #8d9991;
+  text-align: center;
+}
+
+.table-footnote {
+  margin-top: 10px;
+  color: #919d95;
+  font-size: 10px;
+}
+
+.breadcrumb-link {
+  padding: 0;
+  color: #77847e;
+  font-size: inherit;
+}
+
+.breadcrumb-link:hover,
+.back-link:hover {
+  color: #2a6940;
+}
+
+.detail-heading {
+  align-items: center;
+}
+
+.detail-heading .eyebrow {
+  margin-top: 16px;
+}
+
+.detail-heading .page-subtitle span {
+  margin: 0 4px;
+  color: #bbc5be;
+}
+
+.back-link {
+  padding: 0;
+  color: #64806d;
+  font-size: 10px;
+}
+
+.detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.detail-metric-value {
+  margin-top: 17px;
+  color: #304337;
+  font-size: 20px;
+  font-weight: 620;
+  letter-spacing: -0.5px;
+}
+
+.metric-unit {
+  color: #7d8b82;
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: 0;
+}
+
+.detail-panel {
+  margin-bottom: 14px;
+  padding: 17px 0 0;
+  overflow: hidden;
+}
+
+.detail-panel .panel-heading {
+  align-items: center;
+  padding: 0 18px 14px;
+}
+
+.detail-panel th:first-child,
+.detail-panel td:first-child {
+  padding-left: 18px;
+}
+
+.detail-panel th:last-child,
+.detail-panel td:last-child {
+  padding-right: 18px;
+}
+
+.status-future {
+  background: #f0f2f1;
+  color: #7e8a82;
+}
+
+.payment-panel {
+  margin-bottom: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (max-width: 1100px) {
   .sidebar {
     width: 210px;
@@ -479,6 +827,10 @@ h1 {
   }
 
   .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -564,6 +916,19 @@ h1 {
 
   .lower-grid {
     grid-template-columns: 1fr;
+  }
+
+  .table-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .detail-heading {
+    align-items: start;
   }
 }
 

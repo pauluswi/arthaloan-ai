@@ -13,6 +13,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class DemoPortfolioControllerTest {
@@ -24,12 +25,7 @@ class DemoPortfolioControllerTest {
 
     @Test
     void exposesRepeatableSyntheticPortfolioSnapshot() throws Exception {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:%d/api/demo/portfolio".formatted(port)))
-                .GET()
-                .build();
-        HttpResponse<String> response = HttpClient.newHttpClient()
-                .send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = get("/api/demo/portfolio");
         JsonNode portfolio = objectMapper.readTree(response.body());
 
         assertEquals(200, response.statusCode());
@@ -38,5 +34,32 @@ class DemoPortfolioControllerTest {
         assertEquals(12, portfolio.path("customers").size());
         assertEquals(12, portfolio.path("loans").size());
         assertEquals(144, portfolio.path("installments").size());
+    }
+
+    @Test
+    void exposesPaymentAwareLoanInvestigation() throws Exception {
+        HttpResponse<String> response = get("/api/demo/loans/LN-002");
+        JsonNode loan = objectMapper.readTree(response.body());
+
+        assertEquals(200, response.statusCode());
+        assertEquals("LN-002", loan.path("loan").path("loanId").asText());
+        assertEquals(16, loan.path("dpd").asInt());
+        assertEquals(12, loan.path("installments").size());
+        assertTrue(loan.path("outstandingPrincipal").decimalValue().signum() > 0);
+    }
+
+    @Test
+    void returnsNotFoundForUnknownLoan() throws Exception {
+        HttpResponse<String> response = get("/api/demo/loans/UNKNOWN");
+
+        assertEquals(404, response.statusCode());
+    }
+
+    private HttpResponse<String> get(String path) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:%d%s".formatted(port, path)))
+                .GET()
+                .build();
+        return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
     }
 }
