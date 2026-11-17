@@ -78,6 +78,31 @@ customer segment, region, and loan status.
   DPD threshold divided by selected-portfolio outstanding principal.
   A zero portfolio balance makes the ratio unavailable.
 
+## Illustrative loan risk score
+
+`GET /api/demo/loans/{loanId}/risk` returns a deterministic rule score
+for an active loan with at least one installment due by the snapshot
+date. It includes the snapshot date, 30-day horizon, demo rule version,
+eligibility status, score band, and the contributing factors. It is not
+a trained model, calibrated probability, or a recommendation to take
+action.
+
+The score adds up to 100 points from observable snapshot evidence:
+
+| Factor | Points |
+|---|---|
+| Current DPD | One point per day, capped at 40 |
+| Unpaid balance in the three most recent due installments | 10 points per installment, capped at 30 |
+| Payment reversal posted within the prior 180 days | 15 points when present |
+
+Bands are **LOW** (0–24), **MODERATE** (25–49), and **HIGH** (50–100).
+Loans that are not active or have no due installment are ineligible and
+return a null score rather than a fabricated result. Factors are
+displayed with their observed values and point contributions. These
+provisional demo rules are only for showcasing explainability; they
+have no measured predictive performance and must not be used for lending
+or collection decisions.
+
 ## Limitations
 
 This generator is a deterministic demo fixture, not a financial

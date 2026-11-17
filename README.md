@@ -27,6 +27,11 @@ Stop the demo with `Ctrl+C`. The dashboard shows deterministic portfolio
 analytics backed by the synthetic snapshot; no external model or database
 is required.
 
+For separate frontend/backend development, start Spring Boot on port 8080,
+then run `npm --prefix frontend start` and open
+[http://localhost:4200](http://localhost:4200). Angular's development-server
+proxy forwards `/api` requests to the backend.
+
 ## Optional Docker setup
 
 Docker Compose remains available for trying the containerized setup:
@@ -53,6 +58,8 @@ bank data to this repository or local showcase.
 - Interactive portfolio search and loan detail screens in the dashboard.
 - Deterministic analytics at `GET /api/demo/analytics`, including period and
   dimension filters, repayment rate, delinquency distribution, and PAR 1/7/30/90.
+- Explainable 30-day loan risk scores at `GET /api/demo/loans/{loanId}/risk`,
+  using documented deterministic demo rules rather than a trained model.
 - One-command local startup without Docker; Docker Compose is optional.
 
 The portfolio is generated in memory with seed `20261117` and as-of date
@@ -60,6 +67,7 @@ The portfolio is generated in memory with seed `20261117` and as-of date
 `ARTHALOAN_DEMO_AS_OF_DATE` when launching the backend. The generator
 includes performing, overdue, partial-payment, and reversal scenarios.
 
-Authentication, predictions, and collection workflows are not implemented
-yet. Analytics conventions and generated-data limitations are described in
+Authentication, trained-model predictions, and collection workflows are not
+implemented yet. Analytics, demo risk-score conventions, and generated-data
+limitations are described in
 [`docs/data-dictionary.md`](docs/data-dictionary.md).

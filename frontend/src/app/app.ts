@@ -1,8 +1,8 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, map, of, switchMap, timer } from 'rxjs';
+import { catchError, exhaustMap, map, of, switchMap, timeout, timer } from 'rxjs';
 
 interface ApiHealth {
   status: string;
@@ -87,6 +87,24 @@ interface LoanDetail {
   payments: PaymentTransaction[];
 }
 
+interface LoanRiskPrediction {
+  loanId: string;
+  predictedAt: string;
+  horizonDays: number;
+  modelVersion: string;
+  status: 'AVAILABLE' | 'INELIGIBLE';
+  score: number | null;
+  riskBand: 'LOW' | 'MODERATE' | 'HIGH' | 'UNAVAILABLE';
+  scoreDescription: string;
+  eligibilityReason: string | null;
+  factors: {
+    name: string;
+    observedValue: string;
+    points: number;
+    explanation: string;
+  }[];
+}
+
 interface PortfolioAnalytics {
   periodStart: string;
   periodEnd: string;
@@ -149,10 +167,16 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 })
 export class App implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly destroyRef = inject(DestroyRef);
+  private static readonly API_TIMEOUT_MS = 8_000;
   protected readonly apiStatus = signal<'checking' | 'online' | 'offline'>('checking');
   protected readonly view = signal<View>('overview');
   protected readonly loans = signal<LoanSummary[]>([]);
   protected readonly selectedLoan = signal<LoanDetail | null>(null);
+  protected readonly riskPrediction = signal<LoanRiskPrediction | null>(null);
+  protected readonly riskState = signal<LoadState>('idle');
+  protected readonly riskError = signal('');
+  protected readonly riskRequestLoanId = signal('');
   protected readonly listState = signal<LoadState>('idle');
   protected readonly detailState = signal<LoadState>('idle');
   protected readonly analytics = signal<PortfolioAnalytics | null>(null);
@@ -195,15 +219,16 @@ export class App implements OnInit {
     this.loadAnalytics();
     timer(0, 10_000)
       .pipe(
-        switchMap(() =>
+        exhaustMap(() =>
           this.http.get<ApiHealth>('/api/health').pipe(
+            timeout({ first: 4_000 }),
             map((health): 'online' | 'offline' =>
               health.status === 'UP' ? 'online' : 'offline',
             ),
             catchError(() => of('offline' as const)),
           ),
         ),
-        takeUntilDestroyed(),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((status) => this.apiStatus.set(status));
   }
@@ -224,17 +249,22 @@ export class App implements OnInit {
   protected openLoan(loanId: string): void {
     this.view.set('loan-detail');
     this.selectedLoan.set(null);
+    this.riskPrediction.set(null);
+    this.riskState.set('loading');
+    this.riskError.set('');
+    this.riskRequestLoanId.set(loanId);
     this.detailState.set('loading');
     this.errorMessage.set('');
     this.http
       .get<LoanDetail>(`/api/demo/loans/${encodeURIComponent(loanId)}`)
       .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
         catchError(() => {
           this.detailState.set('error');
           this.errorMessage.set('We could not load this loan. Check the API connection and try again.');
           return of(null);
         }),
-        takeUntilDestroyed(),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((detail) => {
         if (detail) {
@@ -242,11 +272,31 @@ export class App implements OnInit {
           this.detailState.set('ready');
         }
       });
+    this.http
+      .get<LoanRiskPrediction>(`/api/demo/loans/${encodeURIComponent(loanId)}/risk`)
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          if (this.riskRequestLoanId() === loanId) {
+            this.riskState.set('error');
+            this.riskError.set('The demo risk score could not be loaded. Check the API connection and try again.');
+          }
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((prediction) => {
+        if (prediction && this.riskRequestLoanId() === loanId) {
+          this.riskPrediction.set(prediction);
+          this.riskState.set('ready');
+        }
+      });
   }
 
   protected backToPortfolio(): void {
     this.view.set('portfolio');
     this.selectedLoan.set(null);
+    this.riskRequestLoanId.set('');
   }
 
   protected retryLoans(): void {
@@ -325,12 +375,13 @@ export class App implements OnInit {
     this.http
       .get<LoanSummary[]>('/api/demo/loans')
       .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
         catchError(() => {
           this.listState.set('error');
           this.errorMessage.set('We could not load the loan portfolio. Check the API connection and try again.');
           return of(null);
         }),
-        takeUntilDestroyed(),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((loans) => {
         if (loans) {
@@ -351,12 +402,18 @@ export class App implements OnInit {
     this.http
       .get<PortfolioAnalytics>('/api/demo/analytics', { params: httpParams })
       .pipe(
-        catchError(() => {
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError((error: unknown) => {
           this.analyticsState.set('error');
-          this.analyticsError.set('Portfolio analytics could not be loaded. Check the API connection and try again.');
+          const reason = error instanceof HttpErrorResponse
+            ? error.status === 0
+              ? 'The API did not respond. Keep ./demo.sh running and check http://localhost:8080/api/health.'
+              : `The API returned HTTP ${error.status}.`
+            : 'The API did not respond within 8 seconds. Keep ./demo.sh running and check http://localhost:8080/api/health.';
+          this.analyticsError.set(`Portfolio analytics failed. ${reason}`);
           return of(null);
         }),
-        takeUntilDestroyed(),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((analytics) => {
         if (analytics) {

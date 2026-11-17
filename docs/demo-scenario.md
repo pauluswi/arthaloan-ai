@@ -25,8 +25,9 @@ question.
     definitions, as-of date, and synthetic-data label are visible.
 4. Open **Loan Portfolio** and select a delinquent loan. Review its
    schedule, posted payment allocations, reversals, outstanding
-   principal, overdue amount, and current DPD. The risk view and
-   prediction are planned for a later step.
+   principal, overdue amount, current DPD, and the illustrative 30-day
+   risk score with its component factors. Point out that the rule score
+   is not a trained or calibrated model.
 5. Open the **Collection Workbench** and locate the loan. Review the
    overdue amount, DPD, risk signal, priority factors, and policy
    version.
@@ -56,6 +57,11 @@ question.
 - **PAR 1/7/30/90:** Outstanding principal for loans at or above the
   respective DPD threshold divided by total outstanding principal in
   the selected portfolio, as of the reporting date.
+- **Risk score:** A provisional, deterministic demo rule score based on
+  snapshot DPD, unpaid recent installments, and payment reversals posted
+  within 180 days.
+  It is not a probability, has no measured predictive performance, and
+  must not be used to make lending or collection decisions.
 - **Risk and language-model integrations:** Mocked behind replaceable
   interfaces initially. Mark mock outputs as illustrative. The
   underlying DPD, portfolio metrics, worklist rules, authorization,

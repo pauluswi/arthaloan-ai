@@ -304,6 +304,52 @@
             <article class="metric-card"><div class="metric-label">Interest / tenor</div><div class="detail-metric-value">{{ detail.loan.annualInterestRatePercent }}% <span class="metric-unit">· {{ detail.loan.tenorMonths }} mo</span></div><div class="metric-footnote">{{ detail.loan.originationDate | date: 'mediumDate' }} – {{ detail.loan.maturityDate | date: 'mediumDate' }}</div></article>
           </section>
 
+          <section class="panel detail-panel risk-panel" aria-label="Illustrative repayment risk score">
+            @if (riskState() === 'loading' || riskState() === 'idle') {
+              <div class="risk-state" role="status">Loading the illustrative risk score…</div>
+            } @else if (riskState() === 'error') {
+              <div class="risk-state risk-error" role="alert">
+                <span>{{ riskError() }}</span>
+                <button class="secondary-button" type="button" (click)="openLoan(detail.loan.loanId)">Retry</button>
+              </div>
+            } @else if (riskPrediction(); as prediction) {
+              <div class="risk-heading">
+                <div>
+                  <h2>30-day repayment risk</h2>
+                  <p>As of {{ prediction.predictedAt | date: 'mediumDate' }} · {{ prediction.modelVersion }}</p>
+                </div>
+                @if (prediction.status === 'AVAILABLE') {
+                  <span class="risk-band" [class.risk-low]="prediction.riskBand === 'LOW'" [class.risk-moderate]="prediction.riskBand === 'MODERATE'" [class.risk-high]="prediction.riskBand === 'HIGH'">{{ prediction.riskBand }} · {{ prediction.score }}/100</span>
+                } @else {
+                  <span class="risk-band risk-unavailable">UNAVAILABLE</span>
+                }
+              </div>
+              @if (prediction.status === 'AVAILABLE') {
+                <div class="risk-result">
+                  <div class="risk-score-track" role="img" [attr.aria-label]="'Illustrative risk score ' + prediction.score + ' out of 100'">
+                    <span [class.risk-fill-high]="prediction.riskBand === 'HIGH'" [class.risk-fill-moderate]="prediction.riskBand === 'MODERATE'" [style.width.%]="prediction.score"></span>
+                  </div>
+                  @if (prediction.factors.length > 0) {
+                    <div class="risk-factors">
+                      @for (factor of prediction.factors; track factor.name) {
+                        <div class="risk-factor">
+                          <div><strong>{{ factor.name }}</strong><span>{{ factor.observedValue }}</span></div>
+                          <b>+{{ factor.points }}</b>
+                          <small>{{ factor.explanation }}</small>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <p class="risk-no-factors">No risk factors were detected by the demo rules for this snapshot.</p>
+                  }
+                </div>
+              } @else {
+                <p class="risk-no-factors">{{ prediction.eligibilityReason }}</p>
+              }
+              <p class="risk-disclaimer">{{ prediction.scoreDescription }} This synthetic demo score is decision support only and must not be used for lending or collection decisions.</p>
+            }
+          </section>
+
           <section class="panel detail-panel">
             <div class="panel-heading">
               <div><h2>Repayment schedule</h2><p>Installment balances are calculated from payments and reversals posted by the as-of date.</p></div>

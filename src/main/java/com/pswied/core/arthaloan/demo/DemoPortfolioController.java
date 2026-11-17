@@ -14,14 +14,17 @@ public class DemoPortfolioController {
 
     private final DemoPortfolioService portfolioService;
     private final LoanInvestigationService loanInvestigationService;
+    private final LoanRiskPredictionService riskPredictionService;
     private final PortfolioAnalyticsService analyticsService;
 
     public DemoPortfolioController(
             DemoPortfolioService portfolioService,
             LoanInvestigationService loanInvestigationService,
+            LoanRiskPredictionService riskPredictionService,
             PortfolioAnalyticsService analyticsService) {
         this.portfolioService = portfolioService;
         this.loanInvestigationService = loanInvestigationService;
+        this.riskPredictionService = riskPredictionService;
         this.analyticsService = analyticsService;
     }
 
@@ -38,6 +41,11 @@ public class DemoPortfolioController {
     @GetMapping("/loans/{loanId}")
     public LoanDetail loan(@PathVariable String loanId) {
         return loanInvestigationService.loan(loanId);
+    }
+
+    @GetMapping("/loans/{loanId}/risk")
+    public LoanRiskPrediction riskPrediction(@PathVariable String loanId) {
+        return riskPredictionService.predict(loanId);
     }
 
     @GetMapping("/analytics")

@@ -56,6 +56,21 @@ class DemoPortfolioControllerTest {
     }
 
     @Test
+    void exposesExplainableLoanRiskScore() throws Exception {
+        HttpResponse<String> response = get("/api/demo/loans/LN-002/risk");
+        JsonNode prediction = objectMapper.readTree(response.body());
+
+        assertEquals(200, response.statusCode());
+        assertEquals("LN-002", prediction.path("loanId").asText());
+        assertEquals(30, prediction.path("horizonDays").asInt());
+        assertEquals("demo-rules-v1", prediction.path("modelVersion").asText());
+        assertEquals("MODERATE", prediction.path("riskBand").asText());
+        assertTrue(prediction.path("factors").size() > 0);
+
+        assertEquals(404, get("/api/demo/loans/UNKNOWN/risk").statusCode());
+    }
+
+    @Test
     void exposesPortfolioAnalyticsAndValidatesFilters() throws Exception {
         HttpResponse<String> response = get("/api/demo/analytics?segment=PRIME");
         JsonNode analytics = objectMapper.readTree(response.body());
