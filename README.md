@@ -62,9 +62,9 @@ bank data to this repository or local showcase.
   using documented deterministic demo rules rather than a trained model.
 - Ranked collection worklist at `GET /api/demo/collections/worklist`, with
   policy version, priority factors, and links to loan investigation.
-- Deterministic analytics assistant at `POST /api/demo/assistant/ask`,
-  answering an allowlisted set of portfolio questions with metric
-  definitions, reporting dates, filters, and evidence.
+- Simulated AI copilot at `POST /api/demo/assistant/ask`: a local mock model
+  interprets questions, selects allowlisted analytics or collection-worklist
+  tools, and produces a grounded response with a visible tool trace.
 - One-command local startup without Docker; Docker Compose is optional.
 
 The portfolio is generated in memory with seed `20261117` and as-of date
@@ -72,8 +72,11 @@ The portfolio is generated in memory with seed `20261117` and as-of date
 `ARTHALOAN_DEMO_AS_OF_DATE` when launching the backend. The generator
 includes performing, overdue, partial-payment, and reversal scenarios.
 
-The analytics assistant is a deterministic demo, not an LLM; authentication,
-interaction persistence, and trained-model predictions are not implemented.
+The assistant is explicitly simulated: its mock model uses local intent
+matching and response templates, with no external LLM, API key, or network
+call. Portfolio figures come from the backend tools and synthetic data.
+Authentication, interaction persistence, and trained-model predictions are
+not implemented.
 Collection activity entries are kept in memory for the current server run
 and are cleared on restart. Analytics, demo risk-score and worklist
 conventions, and generated-data limitations are described in

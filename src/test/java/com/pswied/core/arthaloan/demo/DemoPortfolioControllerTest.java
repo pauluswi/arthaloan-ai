@@ -141,10 +141,12 @@ class DemoPortfolioControllerTest {
 
         assertEquals(200, response.statusCode());
         assertEquals("ANSWERED", answer.path("status").asText());
+        assertEquals("SIMULATED", answer.path("assistantMode").asText());
+        assertEquals("ArthaLoan mock model v1", answer.path("modelName").asText());
         assertTrue(answer.path("answer").asText().contains("PAR 30"), answer.toPrettyString());
         assertEquals("2026-10-31", answer.path("provenance").path("asOfDate").asText());
         assertTrue(answer.path("provenance").path("metricDefinition").asText().contains("DPD"));
-        assertTrue(answer.path("provenance").path("source").asText().contains("no language model"));
+        assertTrue(answer.path("toolCalls").get(0).path("toolName").asText().equals("portfolioAnalytics"));
         assertTrue(answer.path("evidence").size() >= 3);
 
         HttpResponse<String> segmentResponse = post(
@@ -155,6 +157,22 @@ class DemoPortfolioControllerTest {
         JsonNode segmentAnswer = objectMapper.readTree(segmentResponse.body());
         assertEquals("ANSWERED", segmentAnswer.path("status").asText());
         assertTrue(segmentAnswer.path("evidence").size() >= 2);
+    }
+
+    @Test
+    void simulatedAssistantUsesCollectionWorklistToolForReviewQuestions() throws Exception {
+        JsonNode answer = objectMapper.readTree(post(
+                "/api/demo/assistant/ask",
+                """
+                {"question":"What should I review first in collections?"}
+                """).body());
+
+        assertEquals("ANSWERED", answer.path("status").asText());
+        assertEquals("collectionWorklist", answer.path("toolCalls").get(0).path("toolName").asText());
+        assertTrue(answer.path("toolCalls").get(0).path("resultSummary").asText().contains("demo-collection-v1"));
+        assertTrue(answer.path("answer").asText().contains("synthetic account"));
+        assertTrue(answer.path("answer").asText().contains("no action is taken"));
+        assertTrue(answer.path("evidence").get(0).path("label").asText().contains("First account"));
     }
 
     @Test
@@ -180,7 +198,7 @@ class DemoPortfolioControllerTest {
                 {"question":"Should I approve this borrower?"}
                 """).body());
         assertEquals("UNSUPPORTED", unsupportedAnswer.path("status").asText());
-        assertTrue(!unsupportedAnswer.path("provenance").path("asOfDate").asText().isBlank());
+        assertEquals(0, unsupportedAnswer.path("toolCalls").size());
 
         assertEquals(400, post(
                 "/api/demo/assistant/ask",

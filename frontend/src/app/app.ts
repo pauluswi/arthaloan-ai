@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe, JsonPipe } from '@angular/common';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -201,6 +201,8 @@ interface AssistantAnswer {
   status: 'ANSWERED' | 'UNSUPPORTED' | 'INSUFFICIENT_DATA';
   question: string;
   answer: string;
+  assistantMode: 'SIMULATED';
+  modelName: string;
   generatedAt: string;
   provenance: {
     source: string;
@@ -215,6 +217,11 @@ interface AssistantAnswer {
       loanStatus: string | null;
     };
   };
+  toolCalls: {
+    toolName: string;
+    arguments: Record<string, string>;
+    resultSummary: string;
+  }[];
   evidence: { label: string; value: string }[];
 }
 
@@ -227,7 +234,7 @@ type View = 'overview' | 'portfolio' | 'loan-detail' | 'collections' | 'assistan
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 @Component({
-  imports: [CurrencyPipe, DatePipe, DecimalPipe, FormsModule],
+  imports: [CurrencyPipe, DatePipe, DecimalPipe, JsonPipe, FormsModule],
   selector: 'app-root',
   templateUrl: './app.html',
   styleUrl: './app.css',

@@ -139,27 +139,34 @@ restarts; this is not durable storage or a production audit log. Entries
 are accepted only for overdue loans. Simulated contact attempts do not
 send messages or contact borrowers. Use synthetic notes only.
 
-## Deterministic analytics assistant
+## Simulated AI assistant
 
 `POST /api/demo/assistant/ask` accepts a question and optional analytics
-period and filters. This showcase uses a deterministic, allowlisted
-question matcher and the existing portfolio analytics service; it does not
-call an LLM or expose direct database, account-detail, or action tools.
-Supported questions cover a portfolio summary/repayment rate,
-delinquency distribution, PAR 1/7/30/90, and the segment with the largest
-current at-risk principal for a PAR threshold. Segment comparisons apply
-the product, region, and loan-status filters, but compare all segments
-regardless of a selected segment filter.
+period and filters. A local mock model simulates prompt interpretation and
+response composition without an external model, API key, or network call.
+The current request flow is: classify the question into a constrained
+intent, call an allowlisted backend tool, and compose a response from that
+tool's structured result. The UI shows the mock model label, selected tool,
+arguments, tool result summary, evidence, and provenance.
+
+The only available tools are `portfolioAnalytics` and
+`collectionWorklist`; there is no unrestricted database, account-detail,
+payment, or borrower-contact tool. Supported questions cover portfolio
+summary/repayment rate, delinquency distribution, PAR 1/7/30/90, current
+segment contribution to PAR, and which synthetic account should be reviewed
+first from the collection worklist. Segment comparisons apply the product,
+region, and loan-status filters, but compare all segments regardless of a
+selected segment filter. Collection worklist answers are advisory and do
+not make contact or take an action.
 
 Responses include a status (`ANSWERED`, `UNSUPPORTED`, or
-`INSUFFICIENT_DATA`), a concise answer, evidence values, metric definition,
-reporting period, snapshot date, applied filters, and source. PAR is a
-single snapshot metric; the assistant explicitly declines segment
-increase/decrease questions because this fixture has no historical PAR
-snapshots. Unsupported prompts do not produce financial claims. The
-assistant is not authenticated, does not persist interaction history, and
-must not be treated as fulfilling production authorization, audit, or
-generative-AI requirements.
+`INSUFFICIENT_DATA`), mock model name, tool-call trace, evidence values,
+metric definition, reporting period, snapshot date, applied filters, and
+source. Historical change questions are declined because this fixture
+provides one snapshot. Unsupported prompts do not produce financial
+claims. This is a mock-AI showcase, not a connected LLM, and does not
+fulfill production authorization, audit, privacy, or generative-AI
+requirements. Interactions are not persisted.
 
 ## Limitations
 

@@ -285,16 +285,16 @@
       } @else if (view() === 'assistant') {
         <div class="page-heading">
           <div>
-            <div class="eyebrow">GROUNDED PORTFOLIO Q&amp;A</div>
+            <div class="eyebrow">SIMULATED AI COPILOT</div>
             <h1>Analytics assistant</h1>
-            <p class="page-subtitle">Ask about the selected synthetic portfolio using approved, deterministic metrics.</p>
+            <p class="page-subtitle">Ask a question and watch the mock model choose approved data tools and explain the results.</p>
           </div>
-          <span class="as-of-badge">No external AI model</span>
+          <span class="as-of-badge">Mock model · no API key</span>
         </div>
 
         <div class="foundation-notice assistant-notice" role="note">
           <span class="notice-icon" aria-hidden="true">i</span>
-          <span><strong>Demo assistant</strong> — answers are produced from allowlisted analytics, not an LLM. No account-level personal data or actions are available.</span>
+          <span><strong>Simulated AI — mock model; synthetic data only.</strong> The mock model plans and writes the response; approved backend tools supply all figures. Nothing contacts borrowers or takes action.</span>
         </div>
 
         <section class="panel assistant-composer">
@@ -305,7 +305,7 @@
             maxlength="500"
             [value]="assistantQuestion()"
             (input)="updateAssistantQuestion($event)"
-            placeholder="For example: What is PAR 30?"
+            placeholder="For example: What should I review first in collections?"
             [disabled]="assistantState() === 'loading'"></textarea>
           <div class="assistant-composer-footer">
             <span>Answers include metric definitions, reporting dates, filters, and source.</span>
@@ -318,6 +318,7 @@
             <button type="button" (click)="setAssistantPrompt('What is PAR 30?')">What is PAR 30?</button>
             <button type="button" (click)="setAssistantPrompt('Which segment contributes most to PAR 30?')">Top PAR 30 segment</button>
             <button type="button" (click)="setAssistantPrompt('Show the delinquency distribution')">Delinquency distribution</button>
+            <button type="button" (click)="setAssistantPrompt('What should I review first in collections?')">What to review first?</button>
           </div>
         </section>
 
@@ -330,6 +331,7 @@
 
         @for (message of assistantMessages(); track message.response.generatedAt) {
           <article class="panel assistant-answer" [class.assistant-answer-limited]="message.response.status !== 'ANSWERED'">
+            <div class="assistant-model-badge">{{ message.response.modelName }} · simulated</div>
             <div class="assistant-question-label">YOU ASKED</div>
             <h2>{{ message.question }}</h2>
             <p class="assistant-answer-text">{{ message.response.answer }}</p>
@@ -339,6 +341,18 @@
                   <div><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
                 }
               </div>
+            }
+            @if (message.response.toolCalls.length > 0) {
+              <details class="assistant-tool-trace" open>
+                <summary>Tool trace · {{ message.response.toolCalls.length }} approved call{{ message.response.toolCalls.length === 1 ? '' : 's' }}</summary>
+                @for (toolCall of message.response.toolCalls; track $index) {
+                  <div class="assistant-tool-call">
+                    <strong>{{ toolCall.toolName }}</strong>
+                    <code>{{ toolCall.arguments | json }}</code>
+                    <span>{{ toolCall.resultSummary }}</span>
+                  </div>
+                }
+              </details>
             }
             <div class="assistant-provenance">
               @if (message.response.provenance.periodStart && message.response.provenance.periodEnd) {

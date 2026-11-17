@@ -230,19 +230,24 @@ queries, or in-process events. Cyclic dependencies are prohibited.
 
 ### 6.5 Grounded AI question
 
-1. The assistant authenticates the user and creates an interaction
-   context carrying their permissions and correlation ID.
-2. The AI Assistant retrieves only approved definitions and invokes
-   allowlisted analytics or account tools. Tool arguments are
-   schema-validated and permissions are rechecked by the tool.
-3. Tools return structured results with metric definition, period,
-   filters, and source references. The LLM may explain these results
-   but cannot compute or invent portfolio values.
-4. The response validator checks required provenance and unsupported or
-   insufficient-data conditions before returning the answer.
-5. Prompt/tool/response metadata and outcome are logged with sensitive
-   values minimized or redacted. AI can be disabled while the normal
-   analytics API remains available.
+The showcase currently uses a local simulated assistant, not a connected
+LLM. Its mock model classifies a question into a constrained intent,
+invokes only the allowlisted portfolio analytics or collection worklist
+tool, then composes a response from structured tool output. The UI exposes
+the mock model and tool trace. It does not expose database access,
+account-level lookups, or borrower actions.
+
+The production target extends this flow:
+1. Authenticate the user and create an interaction context carrying their
+   permissions and correlation ID.
+2. Retrieve approved definitions and invoke allowlisted analytics or
+   account tools. Validate tool arguments and recheck permissions.
+3. Return structured tool results with metric definition, period, filters,
+   and source references. The LLM may explain results but cannot compute or
+   invent portfolio values.
+4. Validate provenance and unsupported or insufficient-data conditions.
+5. Log prompt/tool/response metadata and outcomes with sensitive values
+   minimized or redacted.
 
 ## 7. Deployment View
 

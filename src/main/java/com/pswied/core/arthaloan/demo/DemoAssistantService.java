@@ -2,6 +2,7 @@ package com.pswied.core.arthaloan.demo;
 
 import com.pswied.core.arthaloan.demo.AssistantAnswer.Evidence;
 import com.pswied.core.arthaloan.demo.AssistantAnswer.Provenance;
+import com.pswied.core.arthaloan.demo.AssistantAnswer.ToolCall;
 import com.pswied.core.arthaloan.demo.PortfolioAnalytics.ParMetric;
 import com.pswied.core.arthaloan.demo.PortfolioAnalytics.Summary;
 import org.springframework.http.HttpStatus;
@@ -11,22 +12,29 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Map;
 
 @Service
 public class DemoAssistantService {
 
-    private static final Pattern PAR_THRESHOLD = Pattern.compile("\\bpar\\s*(1|7|30|90)\\b");
-    private static final String SOURCE = "Deterministic portfolio analytics API; no language model used.";
+    private static final String SOURCE = "Synthetic demo analytics and collection worklist tools.";
 
     private final PortfolioAnalyticsService analyticsService;
+    private final CollectionWorklistService collectionWorklistService;
+    private final MockAssistantModel mockModel;
 
-    public DemoAssistantService(PortfolioAnalyticsService analyticsService) {
+    public DemoAssistantService(
+            PortfolioAnalyticsService analyticsService,
+            CollectionWorklistService collectionWorklistService,
+            MockAssistantModel mockModel) {
         this.analyticsService = analyticsService;
+        this.collectionWorklistService = collectionWorklistService;
+        this.mockModel = mockModel;
     }
 
     public AssistantAnswer answer(AssistantQuestion request) {
@@ -35,51 +43,29 @@ public class DemoAssistantService {
         }
 
         String question = request.question().strip();
-        String normalized = question.toLowerCase(Locale.ROOT);
-        if (normalized.length() > 500) {
+        if (question.length() > 500) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "question must not exceed 500 characters.");
         }
-        PortfolioAnalytics analytics = calculate(request, request.segment());
-
-        if (asksForSegmentPar(normalized)) {
-            return segmentParAnswer(request, question, normalized);
-        }
-        if (containsChangeLanguage(normalized)) {
-            return answer(
-                    "INSUFFICIENT_DATA",
-                    request,
-                    question,
-                    "This demo assistant does not calculate historical changes. It can report current PAR snapshots "
-                            + "and repayment metrics for the selected reporting period.",
-                    analytics,
-                    normalized.contains("par")
-                            ? analytics.definitions().portfolioAtRisk()
-                            : analytics.definitions().repaymentRate(),
-                    List.of());
-        }
-        Matcher parMatcher = PAR_THRESHOLD.matcher(normalized);
-        if (parMatcher.find()) {
-            return parAnswer(request, question, Integer.parseInt(parMatcher.group(1)));
-        }
-        if (asksForSummary(normalized)) {
-            return summaryAnswer(request, question);
-        }
-        if (asksForDelinquency(normalized)) {
-            return delinquencyAnswer(request, question);
-        }
-        return answer(
-                "UNSUPPORTED",
-                request,
-                question,
-                "I can answer portfolio summary, repayment rate, delinquency distribution, PAR 1/7/30/90, "
-                        + "and current segment contribution to PAR. I cannot infer an increase without historical snapshots.",
-                analytics,
-                null,
-                List.of());
+        MockAssistantModel.Plan plan = mockModel.interpret(question);
+        List<ToolCall> toolCalls = new ArrayList<>();
+        AssistantAnswer result = switch (plan.intent()) {
+            case PORTFOLIO_SUMMARY -> summaryAnswer(request, question, toolCalls);
+            case PAR_METRIC -> parAnswer(request, question, plan.parThreshold(), toolCalls);
+            case SEGMENT_PAR -> segmentParAnswer(request, question, plan.parThreshold(), toolCalls);
+            case DELINQUENCY -> delinquencyAnswer(request, question, toolCalls);
+            case COLLECTION_WORKLIST -> collectionWorklistAnswer(request, question, toolCalls);
+            case HISTORICAL_CHANGE -> insufficientHistoryAnswer(request, question);
+            case UNSUPPORTED -> unsupportedAnswer(request, question);
+        };
+        return withModelResponse(result, toolCalls);
     }
 
-    private AssistantAnswer summaryAnswer(AssistantQuestion request, String question) {
+    private AssistantAnswer summaryAnswer(
+            AssistantQuestion request,
+            String question,
+            List<ToolCall> toolCalls) {
         PortfolioAnalytics analytics = calculate(request, request.segment());
+        toolCalls.add(analyticsToolCall(request, "Portfolio summary and metrics returned."));
         Summary summary = analytics.summary();
         String rate = summary.repaymentRatePercent() == null
                 ? "unavailable because no scheduled amount is due"
@@ -100,12 +86,18 @@ public class DemoAssistantService {
                 new Evidence("Scheduled amount", money(summary.scheduledAmount(), analytics.currency())),
                 new Evidence("Amount collected", money(summary.amountCollected(), analytics.currency())),
                 new Evidence("Repayment rate", rate));
-        return answer("ANSWERED", request, question, text, analytics,
-                analytics.definitions().repaymentRate(), evidence);
+        return answer(
+                "ANSWERED", request, question, text,
+                analyticsProvenance(analytics, analytics.definitions().repaymentRate()), evidence);
     }
 
-    private AssistantAnswer parAnswer(AssistantQuestion request, String question, int threshold) {
+    private AssistantAnswer parAnswer(
+            AssistantQuestion request,
+            String question,
+            int threshold,
+            List<ToolCall> toolCalls) {
         PortfolioAnalytics analytics = calculate(request, request.segment());
+        toolCalls.add(analyticsToolCall(request, "PAR metrics returned for thresholds 1, 7, 30 and 90."));
         ParMetric metric = analytics.portfolioAtRisk().stream()
                 .filter(item -> item.thresholdDays() == threshold)
                 .findFirst()
@@ -127,8 +119,7 @@ public class DemoAssistantService {
                 request,
                 question,
                 text,
-                analytics,
-                analytics.definitions().portfolioAtRisk(),
+                analyticsProvenance(analytics, analytics.definitions().portfolioAtRisk()),
                 List.of(
                         new Evidence("PAR " + threshold, ratio),
                         new Evidence("At-risk principal", money(metric.atRiskPrincipal(), analytics.currency())),
@@ -139,32 +130,32 @@ public class DemoAssistantService {
     private AssistantAnswer segmentParAnswer(
             AssistantQuestion request,
             String question,
-            String normalizedQuestion) {
+            int threshold,
+            List<ToolCall> toolCalls) {
         PortfolioAnalytics allSegments = calculate(request, null);
-        Matcher matcher = PAR_THRESHOLD.matcher(normalizedQuestion);
-        int threshold = matcher.find() ? Integer.parseInt(matcher.group(1)) : 30;
-
-        if (containsChangeLanguage(normalizedQuestion)) {
-            return answer(
-                    "INSUFFICIENT_DATA",
-                    request,
-                    question,
-                    "I can compare current segment contributions to PAR %d, but this demo has only one as-of snapshot "
-                            .formatted(threshold)
-                            + "and cannot establish an increase or decrease over time.",
-                    allSegments,
-                    allSegments.definitions().portfolioAtRisk(),
-                    List.of());
-        }
+        toolCalls.add(analyticsToolCall(request, "Available segment options returned."));
 
         List<PortfolioAnalytics> segments = allSegments.filterOptions().segments().stream()
-                .map(segment -> analyticsService.calculate(
+                .map(segment -> {
+                    PortfolioAnalytics segmentAnalytics = analyticsService.calculate(
                         request.periodStart(),
                         request.periodEnd(),
                         request.productId(),
                         segment,
                         request.region(),
-                        request.loanStatus()))
+                        request.loanStatus());
+                    toolCalls.add(new ToolCall(
+                            "portfolioAnalytics",
+                            analyticsArguments(
+                                    request.periodStart(),
+                                    request.periodEnd(),
+                                    request.productId(),
+                                    segment,
+                                    request.region(),
+                                    request.loanStatus()),
+                            "PAR metrics returned for segment " + segment + "."));
+                    return segmentAnalytics;
+                })
                 .toList();
         List<SegmentContribution> contributions = segments.stream()
                 .map(analytics -> {
@@ -188,8 +179,7 @@ public class DemoAssistantService {
                     question,
                     "No segment has outstanding principal meeting the PAR %d threshold in this snapshot."
                             .formatted(threshold),
-                    allSegments,
-                    allSegments.definitions().portfolioAtRisk(),
+                    analyticsProvenance(allSegments, allSegments.definitions().portfolioAtRisk()),
                     List.of());
         }
 
@@ -218,13 +208,16 @@ public class DemoAssistantService {
                 request,
                 question,
                 text,
-                allSegments,
-                allSegments.definitions().portfolioAtRisk(),
+                analyticsProvenance(allSegments, allSegments.definitions().portfolioAtRisk()),
                 evidence);
     }
 
-    private AssistantAnswer delinquencyAnswer(AssistantQuestion request, String question) {
+    private AssistantAnswer delinquencyAnswer(
+            AssistantQuestion request,
+            String question,
+            List<ToolCall> toolCalls) {
         PortfolioAnalytics analytics = calculate(request, request.segment());
+        toolCalls.add(analyticsToolCall(request, "Delinquency distribution returned."));
         long delinquentLoans = analytics.delinquencyDistribution().stream()
                 .filter(bucket -> !bucket.bucket().equals("Current"))
                 .mapToLong(PortfolioAnalytics.DelinquencyBucket::loanCount)
@@ -238,8 +231,95 @@ public class DemoAssistantService {
                         String.join(", ", evidence.stream()
                                 .map(item -> item.label() + ": " + item.value())
                                 .toList()));
-        return answer("ANSWERED", request, question, text, analytics,
-                analytics.definitions().dpd(), evidence);
+        return answer(
+                "ANSWERED", request, question, text,
+                analyticsProvenance(analytics, analytics.definitions().dpd()), evidence);
+    }
+
+    private AssistantAnswer collectionWorklistAnswer(
+            AssistantQuestion request,
+            String question,
+            List<ToolCall> toolCalls) {
+        CollectionWorklist worklist = collectionWorklistService.worklist();
+        toolCalls.add(new ToolCall(
+                "collectionWorklist",
+                Map.of(),
+                "%d overdue accounts sorted by the %s policy."
+                        .formatted(worklist.totalAccounts(), worklist.policyVersion())));
+        Provenance provenance = new Provenance(
+                SOURCE + " Policy " + worklist.policyVersion() + ".",
+                "Priority combines DPD, overdue exposure, and the illustrative demo risk score.",
+                null,
+                null,
+                worklist.asOfDate(),
+                new PortfolioAnalytics.AppliedFilters(null, null, null, null));
+        if (worklist.items().isEmpty()) {
+            return answer(
+                    "INSUFFICIENT_DATA",
+                    request,
+                    question,
+                    "There are no overdue accounts in this synthetic worklist snapshot.",
+                    provenance,
+                    List.of());
+        }
+
+        CollectionWorklist.WorklistItem first = worklist.items().getFirst();
+        List<Evidence> evidence = new ArrayList<>(List.of(
+                new Evidence("First account to review", first.loanId()),
+                new Evidence("Priority", first.priorityBand() + " · " + first.priorityScore()),
+                new Evidence("Days past due", Integer.toString(first.dpd())),
+                new Evidence("Overdue amount", money(first.overdueAmount(), worklist.currency()))));
+        first.factors().forEach(factor ->
+                evidence.add(new Evidence(factor.name(), factor.points() + " points — " + factor.explanation())));
+
+        return answer(
+                "ANSWERED",
+                request,
+                question,
+                "For a human review, start with synthetic account %s: it has %s priority (%d points), %d days "
+                        .formatted(first.loanId(), first.priorityBand(), first.priorityScore(), first.dpd())
+                        + "past due and "
+                        + money(first.overdueAmount(), worklist.currency())
+                        + " overdue. Review its payment history and the listed priority factors. This is advisory "
+                        + "demo output; no borrower is contacted and no action is taken.",
+                provenance,
+                evidence);
+    }
+
+    private AssistantAnswer insufficientHistoryAnswer(AssistantQuestion request, String question) {
+        return answer(
+                "INSUFFICIENT_DATA",
+                request,
+                question,
+                "This demo has only one as-of snapshot, so I cannot establish historical increases or decreases. "
+                        + "I can report current PAR and repayment metrics.",
+                new Provenance(
+                        SOURCE,
+                        null,
+                        request.periodStart(),
+                        request.periodEnd(),
+                        null,
+                        new PortfolioAnalytics.AppliedFilters(
+                                request.productId(), request.segment(), request.region(), request.loanStatus())),
+                List.of());
+    }
+
+    private AssistantAnswer unsupportedAnswer(AssistantQuestion request, String question) {
+        return answer(
+                "UNSUPPORTED",
+                request,
+                question,
+                "I can summarize the portfolio, explain PAR or delinquency, compare current segment PAR, or suggest "
+                        + "the first account for human collection review. I cannot approve borrowers or take actions.",
+                new Provenance(
+                        SOURCE,
+                        null,
+                        request.periodStart(),
+                        request.periodEnd(),
+                        null,
+                        new PortfolioAnalytics.AppliedFilters(
+                                request.productId(), request.segment(), request.region(), request.loanStatus())),
+                List.of());
     }
 
     private PortfolioAnalytics calculate(AssistantQuestion request, String segment) {
@@ -252,61 +332,88 @@ public class DemoAssistantService {
                 request.loanStatus());
     }
 
+    private Provenance analyticsProvenance(PortfolioAnalytics analytics, String definition) {
+        return new Provenance(
+                SOURCE,
+                definition,
+                analytics.periodStart(),
+                analytics.periodEnd(),
+                analytics.asOfDate(),
+                analytics.filters());
+    }
+
     private AssistantAnswer answer(
             String status,
             AssistantQuestion request,
             String question,
             String text,
-            PortfolioAnalytics analytics,
-            String definition,
+            Provenance provenance,
             List<Evidence> evidence) {
-        Provenance provenance = analytics == null
-                ? new Provenance(
-                        SOURCE,
-                        null,
+        return new AssistantAnswer(
+                status,
+                question,
+                text,
+                "SIMULATED",
+                mockModel.modelName(),
+                OffsetDateTime.now(),
+                provenance,
+                List.of(),
+                evidence);
+    }
+
+    private AssistantAnswer withModelResponse(AssistantAnswer result, List<ToolCall> toolCalls) {
+        return new AssistantAnswer(
+                result.status(),
+                result.question(),
+                mockModel.compose(result.answer()),
+                "SIMULATED",
+                mockModel.modelName(),
+                OffsetDateTime.now(),
+                result.provenance(),
+                toolCalls,
+                result.evidence());
+    }
+
+    private ToolCall analyticsToolCall(AssistantQuestion request, String resultSummary) {
+        return new ToolCall(
+                "portfolioAnalytics",
+                analyticsArguments(
                         request.periodStart(),
                         request.periodEnd(),
-                        null,
-                        new PortfolioAnalytics.AppliedFilters(
-                                request.productId(), request.segment(), request.region(), request.loanStatus()))
-                : new Provenance(
-                        SOURCE,
-                        definition,
-                        analytics.periodStart(),
-                        analytics.periodEnd(),
-                        analytics.asOfDate(),
-                        analytics.filters());
-        return new AssistantAnswer(status, question, text, OffsetDateTime.now(), provenance, evidence);
+                        request.productId(),
+                        request.segment(),
+                        request.region(),
+                        request.loanStatus()),
+                resultSummary);
     }
 
-    private boolean asksForSegmentPar(String normalizedQuestion) {
-        return normalizedQuestion.contains("segment")
-                && normalizedQuestion.contains("par")
-                && (normalizedQuestion.contains("which")
-                || normalizedQuestion.contains("most")
-                || normalizedQuestion.contains("contribut")
-                || normalizedQuestion.contains("highest"));
-    }
-
-    private boolean asksForSummary(String normalizedQuestion) {
-        return normalizedQuestion.contains("summary")
-                || normalizedQuestion.contains("repayment rate")
-                || normalizedQuestion.contains("portfolio performance")
-                || normalizedQuestion.contains("how is the portfolio");
-    }
-
-    private boolean asksForDelinquency(String normalizedQuestion) {
-        return normalizedQuestion.contains("delinquen")
-                || normalizedQuestion.contains("overdue accounts")
-                || normalizedQuestion.contains("dpd distribution");
-    }
-
-    private boolean containsChangeLanguage(String normalizedQuestion) {
-        return normalizedQuestion.contains("increase")
-                || normalizedQuestion.contains("decrease")
-                || normalizedQuestion.contains("change")
-                || normalizedQuestion.contains("grew")
-                || normalizedQuestion.contains("rise");
+    private Map<String, String> analyticsArguments(
+            java.time.LocalDate periodStart,
+            java.time.LocalDate periodEnd,
+            String productId,
+            String segment,
+            String region,
+            String loanStatus) {
+        Map<String, String> arguments = new LinkedHashMap<>();
+        if (periodStart != null) {
+            arguments.put("periodStart", periodStart.toString());
+        }
+        if (periodEnd != null) {
+            arguments.put("periodEnd", periodEnd.toString());
+        }
+        if (productId != null) {
+            arguments.put("productId", productId);
+        }
+        if (segment != null) {
+            arguments.put("segment", segment);
+        }
+        if (region != null) {
+            arguments.put("region", region);
+        }
+        if (loanStatus != null) {
+            arguments.put("loanStatus", loanStatus);
+        }
+        return arguments;
     }
 
     private String money(BigDecimal amount, String currency) {
