@@ -696,9 +696,11 @@ based.
   NFR-016                 Portability             The application shall
                                                   run locally using
                                                   documented
-                                                  containerized
-                                                  dependencies and
-                                                  configuration.
+                                                    configuration without
+                                                    requiring containers;
+                                                    containerized
+                                                    deployment may be
+                                                    provided as an option.
 
   NFR-017                 Documentation           The repository shall
                                                   include setup

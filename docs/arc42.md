@@ -51,8 +51,10 @@ Human users remain responsible for operational decisions.
   documented in the metric semantics below.
 - Preferred technology baseline: Angular; Java 25 and Spring Boot,
   subject to dependency compatibility; PostgreSQL; Python/FastAPI and
-  scikit-learn with XGBoost or LightGBM as appropriate; REST/OpenAPI;
-  Docker Compose for local development.
+  scikit-learn with XGBoost or LightGBM as appropriate; REST/OpenAPI.
+- The primary demo launch should not require Docker: build the Angular
+  client into Spring Boot static resources and serve both from one
+  executable JAR. Docker Compose remains an optional deployment path.
 - Redis, Kafka, Kubernetes, and external banking integrations are not
   prerequisites for the first vertical slice.
 - Provider, identity, and external integration specifics remain
@@ -227,7 +229,17 @@ queries, or in-process events. Cyclic dependencies are prohibited.
 
 ## 7. Deployment View
 
-### Local / demo target
+### Primary local demo target (no Docker)
+
+The local demo requires Java 25 and a supported Node.js/npm version.
+`demo.sh` installs locked frontend dependencies, builds Angular,
+packages the generated static client into the Spring Boot executable
+JAR, and starts the application. Maven is used if installed; otherwise
+the script downloads a pinned Maven distribution and verifies its
+SHA-512 checksum. The UI and API share one origin and port, avoiding a
+separate frontend server or browser CORS configuration.
+
+### Optional containerized target
 
 ```mermaid
 flowchart TB
@@ -240,11 +252,10 @@ flowchart TB
     API --> OBS[Structured logs, metrics, health/readiness]
 ```
 
-Docker Compose is the preferred local packaging target. The minimum
-useful vertical slice should run the web client, backend, and PostgreSQL;
-the model service and LLM provider are optional profiles/dependencies.
-Kubernetes is an advanced future deployment target, not a local setup
-prerequisite.
+Docker Compose can run the web client and backend as separate containers.
+The model service, LLM provider, and PostgreSQL are optional until a
+feature needs them. Kubernetes is an advanced future deployment target,
+not a demo prerequisite.
 
 Deployed environments must use TLS. Secrets are injected through
 environment configuration or a secret manager and must not be stored in
