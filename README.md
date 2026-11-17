@@ -23,9 +23,9 @@ JAR. The backend health endpoint is available at
 Set `SERVER_PORT` to use another port, for example
 `SERVER_PORT=8090 ./demo.sh`.
 
-Stop the demo with `Ctrl+C`. The dashboard intentionally shows clearly
-marked unavailable placeholders until portfolio data and analytics are
-implemented; it does not display invented portfolio figures.
+Stop the demo with `Ctrl+C`. The dashboard shows deterministic portfolio
+analytics backed by the synthetic snapshot; no external model or database
+is required.
 
 ## Optional Docker setup
 
@@ -42,7 +42,8 @@ bank data to this repository or local showcase.
 
 ## Current foundation
 
-- Angular dashboard shell with backend connection status.
+- Angular dashboard with filterable portfolio metrics, delinquency buckets,
+  PAR, repayment trends, portfolio search, and loan investigation.
 - Java 25 / Spring Boot API with a health endpoint.
 - Repeatable synthetic demo portfolio available at
   `GET /api/demo/portfolio` (12 customers, 12 loans, 144 installments).
@@ -50,6 +51,8 @@ bank data to this repository or local showcase.
   `GET /api/demo/loans/{loanId}`, including payment-aware DPD, schedule
   balances, and reversal history.
 - Interactive portfolio search and loan detail screens in the dashboard.
+- Deterministic analytics at `GET /api/demo/analytics`, including period and
+  dimension filters, repayment rate, delinquency distribution, and PAR 1/7/30/90.
 - One-command local startup without Docker; Docker Compose is optional.
 
 The portfolio is generated in memory with seed `20261117` and as-of date
@@ -57,5 +60,6 @@ The portfolio is generated in memory with seed `20261117` and as-of date
 `ARTHALOAN_DEMO_AS_OF_DATE` when launching the backend. The generator
 includes performing, overdue, partial-payment, and reversal scenarios.
 
-Authentication, portfolio metrics, predictions, and collection
-workflows are not implemented yet.
+Authentication, predictions, and collection workflows are not implemented
+yet. Analytics conventions and generated-data limitations are described in
+[`docs/data-dictionary.md`](docs/data-dictionary.md).

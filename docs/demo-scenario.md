@@ -20,9 +20,9 @@ question.
 2. Open the **Executive Dashboard**. Review outstanding principal,
    scheduled amount, amount collected, repayment rate, PAR, and
    delinquency buckets for the selected period.
-3. Filter by product or segment and inspect a repayment or delinquency
-   trend. Confirm the period, USD currency, metric definitions, refresh
-   time, and synthetic-data label are visible.
+3. Filter by product, segment, region, or loan status and inspect the
+    six-month repayment trend. Confirm the period, USD currency, metric
+    definitions, as-of date, and synthetic-data label are visible.
 4. Open **Loan Portfolio** and select a delinquent loan. Review its
    schedule, posted payment allocations, reversals, outstanding
    principal, overdue amount, and current DPD. The risk view and
@@ -68,7 +68,8 @@ question.
 - Re-running the demo produces the same portfolio and fixture-backed
   risk/assistant results.
 - Dashboard totals reconcile with the synthetic source records using
-  the conventions above.
+  the conventions above; implemented metrics are served by
+  `GET /api/demo/analytics`.
 - The demo user roles have different server-enforced permissions.
 - Loan prioritization exposes its factors and policy version.
 - Collection activity and material AI interactions are auditable.

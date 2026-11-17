@@ -56,6 +56,28 @@ reduce the original payment's effect without deleting its record.
 - Outstanding principal is scheduled principal across the full loan
   tenor less net posted principal allocations, bounded below by zero.
 
+## Portfolio analytics
+
+`GET /api/demo/analytics` returns the fixed snapshot's reporting period,
+as-of date, currency, applied filters, metric definitions, and filter
+options alongside the metrics. The reporting period defaults to the
+as-of month's first day through the as-of date. Filters support product,
+customer segment, region, and loan status.
+
+- Scheduled amount is principal, interest, and fees due in the reporting
+  period for the selected loans.
+- Amount collected is the signed net of allocations posted during the
+  reporting period to installments due during that same period.
+- Repayment rate is amount collected divided by scheduled amount. A zero
+  scheduled amount is unavailable (`null`), not 0%.
+- Six-month trend applies the same due-period and posting-period rules to
+  each displayed month.
+- Delinquency buckets count loans by snapshot DPD; their balance amounts
+  use outstanding principal.
+- PAR 1/7/30/90 is outstanding principal for loans meeting the inclusive
+  DPD threshold divided by selected-portfolio outstanding principal.
+  A zero portfolio balance makes the ratio unavailable.
+
 ## Limitations
 
 This generator is a deterministic demo fixture, not a financial

@@ -55,6 +55,22 @@ class DemoPortfolioControllerTest {
         assertEquals(404, response.statusCode());
     }
 
+    @Test
+    void exposesPortfolioAnalyticsAndValidatesFilters() throws Exception {
+        HttpResponse<String> response = get("/api/demo/analytics?segment=PRIME");
+        JsonNode analytics = objectMapper.readTree(response.body());
+
+        assertEquals(200, response.statusCode());
+        assertEquals("2026-10-01", analytics.path("periodStart").asText());
+        assertEquals("2026-10-31", analytics.path("periodEnd").asText());
+        assertEquals("PRIME", analytics.path("filters").path("segment").asText());
+        assertEquals(4, analytics.path("portfolioAtRisk").size());
+        assertEquals(5, analytics.path("delinquencyDistribution").size());
+
+        HttpResponse<String> invalidFilter = get("/api/demo/analytics?segment=UNKNOWN");
+        assertEquals(400, invalidFilter.statusCode());
+    }
+
     private HttpResponse<String> get(String path) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:%d%s".formatted(port, path)))

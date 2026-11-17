@@ -61,14 +61,16 @@
             <h1>Good morning</h1>
             <p class="page-subtitle">A clear view of portfolio health starts here.</p>
           </div>
-          <button class="period-button" type="button" disabled>
-            <span aria-hidden="true">◷</span> Reporting period <span class="muted">—</span>
-          </button>
+          <label class="period-button">
+            <span aria-hidden="true">◷</span>
+            <span>Reporting month</span>
+            <input type="month" [value]="selectedMonth()" [max]="analytics()?.asOfDate?.slice(0, 7) ?? ''" (change)="updateMonth($event)" aria-label="Reporting month">
+          </label>
         </div>
 
         <div class="foundation-notice" role="status">
           <span class="notice-icon" aria-hidden="true">i</span>
-          <span><strong>Demo foundation</strong> — portfolio metrics will appear when the analytics step is implemented.</span>
+          <span><strong>Synthetic portfolio</strong> — deterministic metrics, calculated from payment and schedule records.</span>
           <span class="notice-status" aria-live="polite">
             @switch (apiStatus()) {
               @case ('checking') { Checking API… }
@@ -79,53 +81,149 @@
           <span class="status-dot" [class.online]="apiStatus() === 'online'" [class.offline]="apiStatus() === 'offline'" aria-hidden="true"></span>
         </div>
 
-        <section class="metrics-grid" aria-label="Portfolio metrics not yet available">
-          <article class="metric-card">
-            <div class="metric-label">Outstanding principal <span class="metric-symbol">$</span></div>
-            <div class="metric-value">—</div>
-            <div class="metric-footnote">Waiting for portfolio data</div>
-          </article>
-          <article class="metric-card">
-            <div class="metric-label">Scheduled this period <span class="metric-symbol">↗</span></div>
-            <div class="metric-value">—</div>
-            <div class="metric-footnote">Waiting for portfolio data</div>
-          </article>
-          <article class="metric-card">
-            <div class="metric-label">Amount collected <span class="metric-symbol">↓</span></div>
-            <div class="metric-value">—</div>
-            <div class="metric-footnote">Waiting for portfolio data</div>
-          </article>
-          <article class="metric-card">
-            <div class="metric-label">Repayment rate <span class="metric-symbol">%</span></div>
-            <div class="metric-value">—</div>
-            <div class="metric-footnote">Waiting for portfolio data</div>
-          </article>
-        </section>
+        @if (analyticsState() === 'error') {
+          <div class="panel state-panel error-state" role="alert">
+            <strong>Analytics unavailable</strong>
+            <span>{{ analyticsError() }}</span>
+            <button class="secondary-button" type="button" (click)="retryAnalytics()">Try again</button>
+          </div>
+        } @else if (analytics(); as data) {
+          <section class="filter-bar" aria-label="Portfolio filters">
+            <label class="filter-control">
+              <span>Product</span>
+              <select [value]="selectedProduct()" (change)="updateProduct($event)">
+                <option value="">All products</option>
+                @for (product of data.filterOptions.products; track product.productId) {
+                  <option [value]="product.productId">{{ product.name }}</option>
+                }
+              </select>
+            </label>
+            <label class="filter-control">
+              <span>Segment</span>
+              <select [value]="selectedSegment()" (change)="updateSegment($event)">
+                <option value="">All segments</option>
+                @for (segment of data.filterOptions.segments; track segment) {
+                  <option [value]="segment">{{ segment.replace('_', ' ') }}</option>
+                }
+              </select>
+            </label>
+            <label class="filter-control">
+              <span>Region</span>
+              <select [value]="selectedRegion()" (change)="updateRegion($event)">
+                <option value="">All regions</option>
+                @for (region of data.filterOptions.regions; track region) {
+                  <option [value]="region">{{ region.replace('_', ' ') }}</option>
+                }
+              </select>
+            </label>
+            <label class="filter-control">
+              <span>Loan status</span>
+              <select [value]="selectedLoanStatus()" (change)="updateLoanStatus($event)">
+                <option value="">All statuses</option>
+                @for (status of data.filterOptions.loanStatuses; track status) {
+                  <option [value]="status">{{ status }}</option>
+                }
+              </select>
+            </label>
+            <button class="apply-button" type="button" [disabled]="analyticsState() === 'loading'" (click)="applyAnalyticsFilters()">
+              {{ analyticsState() === 'loading' ? 'Updating…' : 'Apply filters' }}
+            </button>
+          </section>
 
-        <section class="lower-grid" aria-label="Analytics previews">
-          <article class="panel trend-panel">
-            <div class="panel-heading">
-              <div><h2>Repayment performance</h2><p>Collection trends over time</p></div>
-              <span class="panel-menu" aria-hidden="true">···</span>
-            </div>
-            <div class="empty-chart">
-              <span class="chart-icon" aria-hidden="true">⌁</span>
-              <strong>Analytics are on the way</strong>
-              <span>Trend data will be shown here once portfolio metrics are implemented.</span>
-            </div>
-          </article>
-          <article class="panel health-panel">
-            <div class="panel-heading">
-              <div><h2>Delinquency overview</h2><p>Portfolio at risk by DPD</p></div>
-              <span class="panel-menu" aria-hidden="true">···</span>
-            </div>
-            <div class="empty-health">
-              <div class="health-ring" aria-hidden="true"><span>—</span></div>
-              <strong>No portfolio metrics yet</strong>
-              <span>Delinquency distribution will appear here.</span>
-            </div>
-          </article>
-        </section>
+          <div class="report-meta">
+            <span>Period <strong>{{ data.periodStart | date: 'mediumDate' }} – {{ data.periodEnd | date: 'mediumDate' }}</strong></span>
+            <span>As of <strong>{{ data.asOfDate | date: 'mediumDate' }}</strong></span>
+            <span>{{ data.summary.activeLoans }} active loans</span>
+            @if (analyticsState() === 'loading') { <span class="refreshing-label">Refreshing…</span> }
+          </div>
+
+          <section class="metrics-grid analytics-metrics" aria-label="Portfolio summary metrics">
+            <article class="metric-card">
+              <div class="metric-label">Active loans <span class="metric-symbol">▤</span></div>
+              <div class="metric-value">{{ data.summary.activeLoans | number }}</div>
+              <div class="metric-footnote">Accounts in selected portfolio</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label" [title]="data.definitions.outstandingPrincipal">Outstanding principal <span class="metric-symbol">$</span></div>
+              <div class="metric-value">{{ data.summary.outstandingPrincipal | currency: data.currency : 'symbol' : '1.2-2' }}</div>
+              <div class="metric-footnote">Balance as of {{ data.asOfDate | date: 'mediumDate' }}</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label">Scheduled this period <span class="metric-symbol">↗</span></div>
+              <div class="metric-value">{{ data.summary.scheduledAmount | currency: data.currency : 'symbol' : '1.2-2' }}</div>
+              <div class="metric-footnote">Principal, interest &amp; fees due</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label">Amount collected <span class="metric-symbol">↓</span></div>
+              <div class="metric-value">{{ data.summary.amountCollected | currency: data.currency : 'symbol' : '1.2-2' }}</div>
+              <div class="metric-footnote">Posted allocations, net of reversals</div>
+            </article>
+            <article class="metric-card repayment-card">
+              <div class="metric-label" [title]="data.definitions.repaymentRate">Repayment rate <span class="metric-symbol">%</span></div>
+              @if (data.summary.repaymentRatePercent === null) {
+                <div class="metric-value unavailable-value">N/A</div>
+                <div class="metric-footnote">No scheduled amount in period</div>
+              } @else {
+                <div class="metric-value">{{ data.summary.repaymentRatePercent | number: '1.2-2' }}%</div>
+                <div class="metric-footnote">Collected ÷ scheduled amount</div>
+              }
+            </article>
+          </section>
+
+          <section class="lower-grid analytics-grid" aria-label="Portfolio analytics">
+            <article class="panel trend-panel">
+              <div class="panel-heading">
+                <div><h2>Repayment performance</h2><p>Scheduled versus collected · {{ data.currency }}</p></div>
+                <span class="chart-legend"><i class="legend-scheduled"></i> Scheduled <i class="legend-collected"></i> Collected</span>
+              </div>
+              <div class="trend-list">
+                @for (month of data.repaymentTrend; track month.periodStart) {
+                  <div class="trend-row">
+                    <span class="trend-month">{{ month.periodStart | date: 'MMM yy' }}</span>
+                    <div class="trend-bars" [attr.aria-label]="'Scheduled ' + (month.scheduledAmount | currency: data.currency) + ', collected ' + (month.amountCollected | currency: data.currency)">
+                      <span class="trend-bar scheduled-bar" [style.width.%]="trendWidth(month.scheduledAmount)"></span>
+                      <span class="trend-bar collected-bar" [style.width.%]="trendWidth(month.amountCollected)"></span>
+                    </div>
+                    <span class="trend-rate">
+                      @if (month.repaymentRatePercent === null) { — } @else { {{ month.repaymentRatePercent | number: '1.0-0' }}% }
+                    </span>
+                  </div>
+                }
+              </div>
+              <div class="chart-caption">Monthly repayment rate uses period-posted allocations applied to installments due that month.</div>
+            </article>
+
+            <article class="panel health-panel">
+              <div class="panel-heading">
+                <div><h2>Delinquency overview</h2><p>Active loans by days past due</p></div>
+              </div>
+              <div class="bucket-list">
+                @for (bucket of data.delinquencyDistribution; track bucket.bucket) {
+                  <div class="bucket-row">
+                    <span class="bucket-name">{{ bucket.bucket }}</span>
+                    <div class="bucket-track"><span class="bucket-fill" [style.width.%]="bucketWidth(bucket.loanCount)"></span></div>
+                    <strong>{{ bucket.loanCount }}</strong>
+                  </div>
+                }
+              </div>
+              <div class="par-grid" aria-label="Portfolio at risk">
+                @for (par of data.portfolioAtRisk; track par.thresholdDays) {
+                  <div class="par-item" [title]="data.definitions.portfolioAtRisk">
+                    <span>PAR {{ par.thresholdDays }}</span>
+                    <strong>@if (par.ratioPercent === null) { — } @else { {{ par.ratioPercent | number: '1.1-1' }}% }</strong>
+                    <small>{{ par.atRiskPrincipal | currency: data.currency : 'symbol' : '1.0-0' }}</small>
+                  </div>
+                }
+              </div>
+            </article>
+          </section>
+          <div class="analytics-definitions">
+            <span [title]="data.definitions.dpd">DPD: calendar days · no grace period</span>
+            <span [title]="data.definitions.portfolioAtRisk">PAR: inclusive DPD thresholds · balance-based</span>
+          </div>
+        } @else {
+          <div class="panel state-panel" role="status">Loading portfolio analytics…</div>
+        }
       } @else if (view() === 'portfolio') {
         <div class="page-heading">
           <div>
