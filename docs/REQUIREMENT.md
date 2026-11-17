@@ -1057,8 +1057,9 @@ The following items must be resolved during design and implementation:
 
 1.  Initial loan products: personal loans only, or personal loans plus
     one additional product for comparison.
-2.  Currency and locale: default demo currency is IDR unless otherwise
-    decided.
+2.  Currency and locale: default demo currency is USD; keep currency
+    explicit on monetary records and make locale-specific formatting
+    configurable for future internationalization.
 3.  DPD policy: calendar-day calculation, treatment of grace periods,
     holidays, and payment allocation.
 4.  Repayment-rate definition: amount-based, installment-count-based, or

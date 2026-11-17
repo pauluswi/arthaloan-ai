@@ -45,6 +45,10 @@ Human users remain responsible for operational decisions.
   action is allowed.
 - Monetary values use fixed-precision decimal types and explicit
   currency. Timezone and business-date semantics must be documented.
+- The initial demo uses USD, calendar-day DPD with no grace period, and
+  the oldest unpaid installment as the DPD anchor. PAR thresholds are
+  inclusive and balance-based; the agreed repayment-rate convention is
+  documented in the metric semantics below.
 - Preferred technology baseline: Angular; Java 25 and Spring Boot,
   subject to dependency compatibility; PostgreSQL; Python/FastAPI and
   scikit-learn with XGBoost or LightGBM as appropriate; REST/OpenAPI;
@@ -270,12 +274,26 @@ resource sizing, and production availability targets are undecided.
 - Use fixed-precision decimal amounts and explicit currency.
 - Record timestamps with a documented timezone and business-date
   convention; calculations take an explicit as-of date.
+- The initial demo currency is USD. Currency is explicit in monetary
+  records and configurable for future locales. DPD is the number of calendar days
+  from the oldest unpaid installment's due date to the as-of business
+  date, with no grace period; a partial payment does not reset DPD while
+  that installment remains unpaid.
+- Repayment rate is amount-based: qualifying payment allocations posted
+  during the selected reporting period, net of reversals, divided by
+  scheduled amounts due during that period. Allocations must relate to
+  installments due in the selected period. Payments posted before the
+  period are excluded, including prepayments; partial payments count by
+  allocated amount. Scheduled amounts include principal, interest, and
+  applicable fees.
+- PAR N is balance-based and uses `DPD >= N`: outstanding principal of
+  loans meeting the threshold divided by total outstanding principal in
+  the selected portfolio, measured as of the reporting date. The
+  denominator includes the selected portfolio's outstanding principal,
+  including delinquent loans.
 - Preserve payment transaction history for reversals and adjustments.
 - Make imports idempotent and report rejected/quarantined records with
   actionable reasons.
-- Document repayment-rate numerator/denominator, payment allocation,
-  PAR threshold and denominator, DPD/grace-period policy, and whether
-  each metric is count- or balance-based.
 - Distinguish zero, missing, stale, and unavailable values.
 
 ### AI/ML governance
@@ -324,7 +342,8 @@ keyboard navigation, readable contrast, and clear labels.
 | In-process events/jobs initially; defer Kafka and Kubernetes | Accepted | Avoids infrastructure overhead before scale or integration needs are demonstrated. |
 | Python model inference behind a provider port | Proposed | Honors the ML technology baseline while insulating domain logic from deployment and provider details. Final placement (in-process/local versus separately deployed service) is implementation-dependent. |
 | Java 25 / Spring Boot and Angular | Provisional | Preferred baseline; verify ecosystem and dependency compatibility and pin supported versions before implementation. |
-| Default currency, DPD and repayment policies, PAR convention, prediction label, risk thresholds, identity provider, LLM provider, retention periods | Open | Resolve and document in domain documentation or decision records before the relevant feature is considered complete. |
+| Currency, DPD policy, repayment-rate formula, and PAR convention for the initial demo | Accepted | Use USD; keep currency explicit and configurable for future locales; calendar-day DPD with no grace period anchored to the oldest unpaid installment; amount-based repayment rate using period-posted allocations net of reversals over amounts due in-period; PAR uses inclusive DPD thresholds and outstanding-principal balances. |
+| Prediction label, risk thresholds, identity provider, LLM provider, retention periods | Open | Resolve and document in domain documentation or decision records before the relevant feature is considered complete. |
 
 ## 10. Quality Requirements
 
