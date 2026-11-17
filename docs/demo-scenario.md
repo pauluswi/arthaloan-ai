@@ -28,9 +28,9 @@ question.
    principal, overdue amount, current DPD, and the illustrative 30-day
    risk score with its component factors. Point out that the rule score
    is not a trained or calibrated model.
-5. Open the **Collection Workbench** and locate the loan. Review the
-   overdue amount, DPD, risk signal, priority factors, and policy
-   version.
+5. Open the **Collection Workbench**. Review the ranked overdue worklist,
+   overdue amount, DPD, risk signal, priority factors, and policy version;
+   open a loan for investigation.
 6. As a seeded Collection Officer, record a simulated activity and
    outcome. Verify that the activity is persisted and audited; no
    borrower is contacted and no adverse action is triggered.
@@ -62,6 +62,10 @@ question.
   within 180 days.
   It is not a probability, has no measured predictive performance, and
   must not be used to make lending or collection decisions.
+- **Collection priority:** The versioned `demo-collection-v1` rule adds
+  bounded DPD points, overdue-exposure tier points, and 40% of the
+  illustrative risk score. It ranks overdue accounts for human review
+  only and performs no assignment or borrower contact.
 - **Risk and language-model integrations:** Mocked behind replaceable
   interfaces initially. Mark mock outputs as illustrative. The
   underlying DPD, portfolio metrics, worklist rules, authorization,

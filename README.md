@@ -60,6 +60,8 @@ bank data to this repository or local showcase.
   dimension filters, repayment rate, delinquency distribution, and PAR 1/7/30/90.
 - Explainable 30-day loan risk scores at `GET /api/demo/loans/{loanId}/risk`,
   using documented deterministic demo rules rather than a trained model.
+- Ranked collection worklist at `GET /api/demo/collections/worklist`, with
+  policy version, priority factors, and links to loan investigation.
 - One-command local startup without Docker; Docker Compose is optional.
 
 The portfolio is generated in memory with seed `20261117` and as-of date
@@ -67,7 +69,7 @@ The portfolio is generated in memory with seed `20261117` and as-of date
 `ARTHALOAN_DEMO_AS_OF_DATE` when launching the backend. The generator
 includes performing, overdue, partial-payment, and reversal scenarios.
 
-Authentication, trained-model predictions, and collection workflows are not
-implemented yet. Analytics, demo risk-score conventions, and generated-data
-limitations are described in
+Authentication, trained-model predictions, and collection activity recording
+are not implemented yet. Analytics, demo risk-score and worklist conventions,
+and generated-data limitations are described in
 [`docs/data-dictionary.md`](docs/data-dictionary.md).

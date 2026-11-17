@@ -105,6 +105,34 @@ interface LoanRiskPrediction {
   }[];
 }
 
+interface CollectionWorklist {
+  asOfDate: string;
+  currency: string;
+  policyVersion: string;
+  totalAccounts: number;
+  totalOverdueAmount: number;
+  items: {
+    loanId: string;
+    customerId: string;
+    productName: string;
+    segment: string;
+    region: string;
+    outstandingPrincipal: number;
+    overdueAmount: number;
+    dpd: number;
+    priorityScore: number;
+    priorityBand: 'HIGH' | 'PRIORITY' | 'STANDARD';
+    riskScore: number | null;
+    riskBand: string;
+    suggestedAction: string;
+    factors: {
+      name: string;
+      points: number;
+      explanation: string;
+    }[];
+  }[];
+}
+
 interface PortfolioAnalytics {
   periodStart: string;
   periodEnd: string;
@@ -156,7 +184,7 @@ interface PortfolioAnalytics {
   };
 }
 
-type View = 'overview' | 'portfolio' | 'loan-detail';
+type View = 'overview' | 'portfolio' | 'loan-detail' | 'collections';
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 @Component({
@@ -177,6 +205,9 @@ export class App implements OnInit {
   protected readonly riskState = signal<LoadState>('idle');
   protected readonly riskError = signal('');
   protected readonly riskRequestLoanId = signal('');
+  protected readonly collectionWorklist = signal<CollectionWorklist | null>(null);
+  protected readonly collectionState = signal<LoadState>('idle');
+  protected readonly collectionError = signal('');
   protected readonly listState = signal<LoadState>('idle');
   protected readonly detailState = signal<LoadState>('idle');
   protected readonly analytics = signal<PortfolioAnalytics | null>(null);
@@ -243,6 +274,14 @@ export class App implements OnInit {
     this.selectedLoan.set(null);
     if (this.listState() === 'idle' || this.listState() === 'error') {
       this.loadLoans();
+    }
+  }
+
+  protected showCollections(): void {
+    this.view.set('collections');
+    this.selectedLoan.set(null);
+    if (this.collectionState() === 'idle' || this.collectionState() === 'error') {
+      this.loadCollectionWorklist();
     }
   }
 
@@ -387,6 +426,28 @@ export class App implements OnInit {
         if (loans) {
           this.loans.set(loans);
           this.listState.set('ready');
+        }
+      });
+  }
+
+  private loadCollectionWorklist(): void {
+    this.collectionState.set('loading');
+    this.collectionError.set('');
+    this.http
+      .get<CollectionWorklist>('/api/demo/collections/worklist')
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.collectionState.set('error');
+          this.collectionError.set('The collection worklist could not be loaded. Check the API connection and try again.');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((worklist) => {
+        if (worklist) {
+          this.collectionWorklist.set(worklist);
+          this.collectionState.set('ready');
         }
       });
   }

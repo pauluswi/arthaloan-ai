@@ -71,6 +71,18 @@ class DemoPortfolioControllerTest {
     }
 
     @Test
+    void exposesRankedCollectionWorklist() throws Exception {
+        HttpResponse<String> response = get("/api/demo/collections/worklist");
+        JsonNode worklist = objectMapper.readTree(response.body());
+
+        assertEquals(200, response.statusCode());
+        assertEquals("demo-collection-v1", worklist.path("policyVersion").asText());
+        assertEquals(worklist.path("items").size(), worklist.path("totalAccounts").asInt());
+        assertTrue(worklist.path("totalOverdueAmount").decimalValue().signum() > 0);
+        assertTrue(worklist.path("items").get(0).path("factors").size() > 0);
+    }
+
+    @Test
     void exposesPortfolioAnalyticsAndValidatesFilters() throws Exception {
         HttpResponse<String> response = get("/api/demo/analytics?segment=PRIME");
         JsonNode analytics = objectMapper.readTree(response.body());

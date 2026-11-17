@@ -103,6 +103,26 @@ provisional demo rules are only for showcasing explainability; they
 have no measured predictive performance and must not be used for lending
 or collection decisions.
 
+## Collection worklist
+
+`GET /api/demo/collections/worklist` returns active loans with positive
+DPD and overdue amount, ranked by a deterministic `demo-collection-v1`
+policy. Each item includes the 30-day demo risk signal, component points,
+the score band, and the snapshot balances. The endpoint also returns the
+as-of date and total overdue amount.
+
+| Priority component | Points |
+|---|---|
+| Delinquency | One point per DPD, capped at 40 |
+| Overdue exposure | 5 points below $500; 10 for $500–$999.99; 15 for $1,000–$1,999.99; 20 from $2,000 |
+| 30-day risk signal | 40% of the illustrative risk score, rounded to the nearest point |
+
+Priority bands are **HIGH** (60+), **PRIORITY** (35–59), and **STANDARD**
+(below 35). Ties are ordered by DPD descending, overdue amount descending,
+then loan ID. The displayed review suggestion is advisory. This worklist
+does not assign real collection officers, record activities, or initiate
+borrower contact.
+
 ## Limitations
 
 This generator is a deterministic demo fixture, not a financial
