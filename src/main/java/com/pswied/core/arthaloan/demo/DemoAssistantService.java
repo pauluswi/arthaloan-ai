@@ -11,7 +11,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -40,9 +39,23 @@ public class DemoAssistantService {
         if (normalized.length() > 500) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "question must not exceed 500 characters.");
         }
+        PortfolioAnalytics analytics = calculate(request, request.segment());
 
         if (asksForSegmentPar(normalized)) {
             return segmentParAnswer(request, question, normalized);
+        }
+        if (containsChangeLanguage(normalized)) {
+            return answer(
+                    "INSUFFICIENT_DATA",
+                    request,
+                    question,
+                    "This demo assistant does not calculate historical changes. It can report current PAR snapshots "
+                            + "and repayment metrics for the selected reporting period.",
+                    analytics,
+                    normalized.contains("par")
+                            ? analytics.definitions().portfolioAtRisk()
+                            : analytics.definitions().repaymentRate(),
+                    List.of());
         }
         Matcher parMatcher = PAR_THRESHOLD.matcher(normalized);
         if (parMatcher.find()) {
@@ -60,6 +73,7 @@ public class DemoAssistantService {
                 question,
                 "I can answer portfolio summary, repayment rate, delinquency distribution, PAR 1/7/30/90, "
                         + "and current segment contribution to PAR. I cannot infer an increase without historical snapshots.",
+                analytics,
                 null,
                 List.of());
     }
@@ -70,9 +84,9 @@ public class DemoAssistantService {
         String rate = summary.repaymentRatePercent() == null
                 ? "unavailable because no scheduled amount is due"
                 : number(summary.repaymentRatePercent()) + "%";
-        String text = "For %s through %s, the selected portfolio has %d loans, %s outstanding principal, "
+        String text = ("For %s through %s, the selected portfolio has %d loans, %s outstanding principal, "
                 + "%s scheduled, and %s collected. The repayment rate is %s."
-                .formatted(
+                ).formatted(
                         analytics.periodStart(),
                         analytics.periodEnd(),
                         summary.activeLoans(),
@@ -99,9 +113,9 @@ public class DemoAssistantService {
         String ratio = metric.ratioPercent() == null
                 ? "unavailable because selected portfolio principal is zero"
                 : number(metric.ratioPercent()) + "%";
-        String text = "PAR %d is %s (%s at-risk principal of %s outstanding principal), using DPD >= %d "
+        String text = ("PAR %d is %s (%s at-risk principal of %s outstanding principal), using DPD >= %d "
                 + "as of %s."
-                .formatted(
+                ).formatted(
                         threshold,
                         ratio,
                         money(metric.atRiskPrincipal(), analytics.currency()),
@@ -180,10 +194,10 @@ public class DemoAssistantService {
         }
 
         SegmentContribution top = contributions.getFirst();
-        String text = "%s contributes the largest amount to current PAR %d: %s at-risk principal (%s of that "
+        String text = ("%s contributes the largest amount to current PAR %d: %s at-risk principal (%s of that "
                 + "segment's outstanding principal), across %d qualifying loans. This is a current snapshot "
                 + "comparison, not a change over time."
-                .formatted(
+                ).formatted(
                         top.segment(),
                         threshold,
                         money(top.atRiskPrincipal(), allSegments.currency()),

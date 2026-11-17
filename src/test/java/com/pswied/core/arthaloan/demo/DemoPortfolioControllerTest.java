@@ -130,6 +130,65 @@ class DemoPortfolioControllerTest {
         assertEquals(400, invalidFilter.statusCode());
     }
 
+    @Test
+    void answersGroundedPortfolioQuestionsWithProvenance() throws Exception {
+        HttpResponse<String> response = post(
+                "/api/demo/assistant/ask",
+                """
+                {"question":"What is PAR 30?"}
+                """);
+        JsonNode answer = objectMapper.readTree(response.body());
+
+        assertEquals(200, response.statusCode());
+        assertEquals("ANSWERED", answer.path("status").asText());
+        assertTrue(answer.path("answer").asText().contains("PAR 30"), answer.toPrettyString());
+        assertEquals("2026-10-31", answer.path("provenance").path("asOfDate").asText());
+        assertTrue(answer.path("provenance").path("metricDefinition").asText().contains("DPD"));
+        assertTrue(answer.path("provenance").path("source").asText().contains("no language model"));
+        assertTrue(answer.path("evidence").size() >= 3);
+
+        HttpResponse<String> segmentResponse = post(
+                "/api/demo/assistant/ask",
+                """
+                {"question":"Which segment contributes most to PAR 30?"}
+                """);
+        JsonNode segmentAnswer = objectMapper.readTree(segmentResponse.body());
+        assertEquals("ANSWERED", segmentAnswer.path("status").asText());
+        assertTrue(segmentAnswer.path("evidence").size() >= 2);
+    }
+
+    @Test
+    void assistantDoesNotInventHistoricalParChangesOrUnsupportedAnswers() throws Exception {
+        JsonNode changeAnswer = objectMapper.readTree(post(
+                "/api/demo/assistant/ask",
+                """
+                {"question":"Which segment contributed most to the increase in PAR 30?"}
+                """).body());
+        assertEquals("INSUFFICIENT_DATA", changeAnswer.path("status").asText());
+        assertTrue(changeAnswer.path("answer").asText().contains("only one as-of snapshot"));
+
+        JsonNode trendAnswer = objectMapper.readTree(post(
+                "/api/demo/assistant/ask",
+                """
+                {"question":"Has PAR 30 increased?"}
+                """).body());
+        assertEquals("INSUFFICIENT_DATA", trendAnswer.path("status").asText());
+
+        JsonNode unsupportedAnswer = objectMapper.readTree(post(
+                "/api/demo/assistant/ask",
+                """
+                {"question":"Should I approve this borrower?"}
+                """).body());
+        assertEquals("UNSUPPORTED", unsupportedAnswer.path("status").asText());
+        assertTrue(!unsupportedAnswer.path("provenance").path("asOfDate").asText().isBlank());
+
+        assertEquals(400, post(
+                "/api/demo/assistant/ask",
+                """
+                {"question":" "}
+                """).statusCode());
+    }
+
     private HttpResponse<String> get(String path) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:%d%s".formatted(port, path)))

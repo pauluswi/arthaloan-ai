@@ -139,6 +139,28 @@ restarts; this is not durable storage or a production audit log. Entries
 are accepted only for overdue loans. Simulated contact attempts do not
 send messages or contact borrowers. Use synthetic notes only.
 
+## Deterministic analytics assistant
+
+`POST /api/demo/assistant/ask` accepts a question and optional analytics
+period and filters. This showcase uses a deterministic, allowlisted
+question matcher and the existing portfolio analytics service; it does not
+call an LLM or expose direct database, account-detail, or action tools.
+Supported questions cover a portfolio summary/repayment rate,
+delinquency distribution, PAR 1/7/30/90, and the segment with the largest
+current at-risk principal for a PAR threshold. Segment comparisons apply
+the product, region, and loan-status filters, but compare all segments
+regardless of a selected segment filter.
+
+Responses include a status (`ANSWERED`, `UNSUPPORTED`, or
+`INSUFFICIENT_DATA`), a concise answer, evidence values, metric definition,
+reporting period, snapshot date, applied filters, and source. PAR is a
+single snapshot metric; the assistant explicitly declines segment
+increase/decrease questions because this fixture has no historical PAR
+snapshots. Unsupported prompts do not produce financial claims. The
+assistant is not authenticated, does not persist interaction history, and
+must not be treated as fulfilling production authorization, audit, or
+generative-AI requirements.
+
 ## Limitations
 
 This generator is a deterministic demo fixture, not a financial
