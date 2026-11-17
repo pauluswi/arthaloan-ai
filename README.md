@@ -44,7 +44,14 @@ bank data to this repository or local showcase.
 
 - Angular dashboard shell with backend connection status.
 - Java 25 / Spring Boot API with a health endpoint.
+- Repeatable synthetic demo portfolio available at
+  `GET /api/demo/portfolio` (12 customers, 12 loans, 144 installments).
 - One-command local startup without Docker; Docker Compose is optional.
 
-Loan data, authentication, portfolio metrics, predictions, and
-collection workflows are not implemented yet.
+The portfolio is generated in memory with seed `20261117` and as-of date
+`2026-10-31`. Override them with `ARTHALOAN_DEMO_SEED` and
+`ARTHALOAN_DEMO_AS_OF_DATE` when launching the backend. The generator
+includes performing, overdue, partial-payment, and reversal scenarios.
+
+Authentication, portfolio metrics, predictions, and collection
+workflows are not implemented yet.
