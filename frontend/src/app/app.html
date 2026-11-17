@@ -163,87 +163,6 @@
               @if (data.summary.repaymentRatePercent === null) {
                 <div class="metric-value unavailable-value">N/A</div>
                 <div class="metric-footnote">No scheduled amount in period</div>
-              } @else if (view() === 'collections') {
-                <div class="page-heading">
-                  <div>
-                    <div class="eyebrow">COLLECTION INTELLIGENCE</div>
-                    <h1>Collection workbench</h1>
-                    <p class="page-subtitle">A transparent, snapshot-based queue for human review.</p>
-                  </div>
-                  @if (collectionWorklist(); as worklist) {
-                    <span class="as-of-badge">As of {{ worklist.asOfDate | date: 'mediumDate' }}</span>
-                  }
-                </div>
-
-                <div class="foundation-notice collection-notice" role="note">
-                  <span class="notice-icon" aria-hidden="true">i</span>
-                  <span><strong>Decision support only</strong> — synthetic demo data; no borrower is contacted and no action is taken automatically.</span>
-                </div>
-
-                @if (collectionState() === 'loading' || collectionState() === 'idle') {
-                  <div class="panel state-panel" role="status">Building the demo collection worklist…</div>
-                } @else if (collectionState() === 'error') {
-                  <div class="panel state-panel error-state" role="alert">
-                    <strong>Worklist unavailable</strong>
-                    <span>{{ collectionError() }}</span>
-                    <button class="secondary-button" type="button" (click)="showCollections()">Try again</button>
-                  </div>
-                } @else if (collectionWorklist(); as worklist) {
-                  <section class="collection-summary" aria-label="Collection worklist summary">
-                    <article class="metric-card">
-                      <div class="metric-label">Accounts needing review</div>
-                      <div class="detail-metric-value">{{ worklist.totalAccounts | number }}</div>
-                      <div class="metric-footnote">Overdue active loans in this snapshot</div>
-                    </article>
-                    <article class="metric-card">
-                      <div class="metric-label">Total overdue amount</div>
-                      <div class="detail-metric-value">{{ worklist.totalOverdueAmount | currency: worklist.currency : 'symbol' : '1.2-2' }}</div>
-                      <div class="metric-footnote">Unpaid scheduled amount</div>
-                    </article>
-                    <article class="metric-card policy-summary">
-                      <div class="metric-label">Prioritization policy</div>
-                      <div class="detail-metric-value">{{ worklist.policyVersion }}</div>
-                      <div class="metric-footnote">DPD + overdue exposure + 30-day demo risk signal</div>
-                    </article>
-                  </section>
-
-                  <div class="table-toolbar">
-                    <div class="table-count">Sorted by priority score, then DPD and overdue amount</div>
-                    <span class="as-of-badge">Synthetic · {{ worklist.currency }}</span>
-                  </div>
-                  <div class="panel table-panel">
-                    <div class="table-scroll">
-                      <table class="collection-table">
-                        <thead>
-                          <tr><th>LOAN / CUSTOMER</th><th>DELINQUENCY</th><th>OVERDUE</th><th>OUTSTANDING</th><th>RISK SIGNAL</th><th>PRIORITY</th><th>PRIORITY FACTORS</th><th><span class="sr-only">Investigate loan</span></th></tr>
-                        </thead>
-                        <tbody>
-                          @for (item of worklist.items; track item.loanId) {
-                            <tr>
-                              <td><strong>{{ item.loanId }}</strong><span class="table-subtext">{{ item.customerId }} · {{ item.segment.replace('_', ' ') }}</span></td>
-                              <td><span class="dpd-badge delinquent">{{ item.dpd }} days</span><span class="table-subtext">{{ item.region.replace('_', ' ') }}</span></td>
-                              <td class="amount-overdue">{{ item.overdueAmount | currency: worklist.currency : 'symbol' : '1.2-2' }}</td>
-                              <td>{{ item.outstandingPrincipal | currency: worklist.currency : 'symbol' : '1.2-2' }}</td>
-                              <td>
-                                @if (item.riskScore === null) {
-                                  <span class="risk-band risk-unavailable">Unavailable</span>
-                                } @else {
-                                  <span class="risk-band" [class.risk-low]="item.riskBand === 'LOW'" [class.risk-moderate]="item.riskBand === 'MODERATE'" [class.risk-high]="item.riskBand === 'HIGH'">{{ item.riskBand }} · {{ item.riskScore }}</span>
-                                }
-                              </td>
-                              <td><span class="priority-badge" [class.priority-high]="item.priorityBand === 'HIGH'" [class.priority-review]="item.priorityBand === 'PRIORITY'">{{ item.priorityBand }} · {{ item.priorityScore }}</span></td>
-                              <td><div class="factor-list">@for (factor of item.factors; track factor.name) { <span [title]="factor.explanation">{{ factor.name }} +{{ factor.points }}</span> }</div></td>
-                              <td><button class="open-link" type="button" (click)="openLoan(item.loanId)" [attr.aria-label]="'Investigate loan ' + item.loanId">Review <span aria-hidden="true">→</span></button></td>
-                            </tr>
-                          } @empty {
-                            <tr><td class="empty-row" colspan="8">No overdue accounts in this synthetic snapshot.</td></tr>
-                          }
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <p class="table-footnote">Suggested review: inspect the account and recent payment history. Policy {{ worklist.policyVersion }} is deterministic and illustrative; it does not initiate collections or contact borrowers.</p>
-                }
               } @else {
                 <div class="metric-value">{{ data.summary.repaymentRatePercent | number: '1.2-2' }}%</div>
                 <div class="metric-footnote">Collected ÷ scheduled amount</div>
@@ -357,6 +276,87 @@
             </div>
           </div>
           <p class="table-footnote">DPD is calendar days from the oldest unpaid installment due date to {{ loans()[0]?.asOfDate | date: 'mediumDate' }}. Synthetic demonstration data only.</p>
+        }
+      } @else if (view() === 'collections') {
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">COLLECTION INTELLIGENCE</div>
+            <h1>Collection workbench</h1>
+            <p class="page-subtitle">A transparent, snapshot-based queue for human review.</p>
+          </div>
+          @if (collectionWorklist(); as worklist) {
+            <span class="as-of-badge">As of {{ worklist.asOfDate | date: 'mediumDate' }}</span>
+          }
+        </div>
+
+        <div class="foundation-notice collection-notice" role="note">
+          <span class="notice-icon" aria-hidden="true">i</span>
+          <span><strong>Decision support only</strong> — synthetic demo data; no borrower is contacted and no action is taken automatically.</span>
+        </div>
+
+        @if (collectionState() === 'loading' || collectionState() === 'idle') {
+          <div class="panel state-panel" role="status">Building the demo collection worklist…</div>
+        } @else if (collectionState() === 'error') {
+          <div class="panel state-panel error-state" role="alert">
+            <strong>Worklist unavailable</strong>
+            <span>{{ collectionError() }}</span>
+            <button class="secondary-button" type="button" (click)="showCollections()">Try again</button>
+          </div>
+        } @else if (collectionWorklist(); as worklist) {
+          <section class="collection-summary" aria-label="Collection worklist summary">
+            <article class="metric-card">
+              <div class="metric-label">Accounts needing review</div>
+              <div class="detail-metric-value">{{ worklist.totalAccounts | number }}</div>
+              <div class="metric-footnote">Overdue active loans in this snapshot</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label">Total overdue amount</div>
+              <div class="detail-metric-value">{{ worklist.totalOverdueAmount | currency: worklist.currency : 'symbol' : '1.2-2' }}</div>
+              <div class="metric-footnote">Unpaid scheduled amount</div>
+            </article>
+            <article class="metric-card policy-summary">
+              <div class="metric-label">Prioritization policy</div>
+              <div class="detail-metric-value">{{ worklist.policyVersion }}</div>
+              <div class="metric-footnote">DPD + overdue exposure + 30-day demo risk signal</div>
+            </article>
+          </section>
+
+          <div class="table-toolbar">
+            <div class="table-count">Sorted by priority score, then DPD and overdue amount</div>
+            <span class="as-of-badge">Synthetic · {{ worklist.currency }}</span>
+          </div>
+          <div class="panel table-panel">
+            <div class="table-scroll">
+              <table class="collection-table">
+                <thead>
+                  <tr><th>LOAN / CUSTOMER</th><th>DELINQUENCY</th><th>OVERDUE</th><th>OUTSTANDING</th><th>RISK SIGNAL</th><th>PRIORITY</th><th>PRIORITY FACTORS</th><th><span class="sr-only">Investigate loan</span></th></tr>
+                </thead>
+                <tbody>
+                  @for (item of worklist.items; track item.loanId) {
+                    <tr>
+                      <td><strong>{{ item.loanId }}</strong><span class="table-subtext">{{ item.customerId }} · {{ item.segment.replace('_', ' ') }}</span></td>
+                      <td><span class="dpd-badge delinquent">{{ item.dpd }} days</span><span class="table-subtext">{{ item.region.replace('_', ' ') }}</span></td>
+                      <td class="amount-overdue">{{ item.overdueAmount | currency: worklist.currency : 'symbol' : '1.2-2' }}</td>
+                      <td>{{ item.outstandingPrincipal | currency: worklist.currency : 'symbol' : '1.2-2' }}</td>
+                      <td>
+                        @if (item.riskScore === null) {
+                          <span class="risk-band risk-unavailable">Unavailable</span>
+                        } @else {
+                          <span class="risk-band" [class.risk-low]="item.riskBand === 'LOW'" [class.risk-moderate]="item.riskBand === 'MODERATE'" [class.risk-high]="item.riskBand === 'HIGH'">{{ item.riskBand }} · {{ item.riskScore }}</span>
+                        }
+                      </td>
+                      <td><span class="priority-badge" [class.priority-high]="item.priorityBand === 'HIGH'" [class.priority-review]="item.priorityBand === 'PRIORITY'">{{ item.priorityBand }} · {{ item.priorityScore }}</span></td>
+                      <td><div class="factor-list">@for (factor of item.factors; track factor.name) { <span [title]="factor.explanation">{{ factor.name }} +{{ factor.points }}</span> }</div></td>
+                      <td><button class="open-link" type="button" (click)="openLoan(item.loanId)" [attr.aria-label]="'Investigate loan ' + item.loanId">Review <span aria-hidden="true">→</span></button></td>
+                    </tr>
+                  } @empty {
+                    <tr><td class="empty-row" colspan="8">No overdue accounts in this synthetic snapshot.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="table-footnote">Suggested review: inspect the account and recent payment history. Policy {{ worklist.policyVersion }} is deterministic and illustrative; it does not initiate collections or contact borrowers.</p>
         }
       } @else {
         @if (detailState() === 'loading') {
