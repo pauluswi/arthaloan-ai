@@ -176,6 +176,55 @@ class DemoPortfolioControllerTest {
     }
 
     @Test
+    void localOllamaModeIsDisabledByDefault() throws Exception {
+        HttpResponse<String> statusResponse = get("/api/demo/ollama/status");
+        JsonNode status = objectMapper.readTree(statusResponse.body());
+
+        assertEquals(200, statusResponse.statusCode());
+        assertEquals(false, status.path("enabled").asBoolean());
+        assertEquals(503, post(
+                "/api/demo/ollama/ask",
+                """
+                {"question":"Summarize the portfolio"}
+                """).statusCode());
+    }
+
+    @Test
+    void retrievesApprovedKnowledgeWithCitations() throws Exception {
+        JsonNode knowledge = objectMapper.readTree(get("/api/demo/rag/knowledge").body());
+        assertTrue(knowledge.size() >= 5);
+
+        JsonNode answer = objectMapper.readTree(post(
+                "/api/demo/rag/ask",
+                """
+                {"question":"How is PAR 30 calculated?"}
+                """).body());
+        assertEquals("ANSWERED", answer.path("status").asText());
+        assertEquals("MOCK_RAG", answer.path("retrievalMode").asText());
+        assertTrue(answer.path("retrievalMethod").asText().contains("no embeddings"));
+        assertTrue(answer.path("answer").asText().contains("inclusive"));
+        assertEquals("demo-metric-par", answer.path("sources").get(0).path("documentId").asText());
+        assertTrue(answer.path("sources").get(0).path("excerpt").asText().contains("outstanding principal"));
+    }
+
+    @Test
+    void ragReportsInsufficientKnowledgeAndValidatesQuestion() throws Exception {
+        JsonNode unsupported = objectMapper.readTree(post(
+                "/api/demo/rag/ask",
+                """
+                {"question":"What was the 2024 central bank policy rate?"}
+                """).body());
+        assertEquals("INSUFFICIENT_KNOWLEDGE", unsupported.path("status").asText(), unsupported.toPrettyString());
+        assertEquals(0, unsupported.path("sources").size());
+
+        assertEquals(400, post(
+                "/api/demo/rag/ask",
+                """
+                {"question":" "}
+                """).statusCode());
+    }
+
+    @Test
     void assistantDoesNotInventHistoricalParChangesOrUnsupportedAnswers() throws Exception {
         JsonNode changeAnswer = objectMapper.readTree(post(
                 "/api/demo/assistant/ask",

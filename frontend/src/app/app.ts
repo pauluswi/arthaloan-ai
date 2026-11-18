@@ -230,7 +230,44 @@ interface AssistantMessage {
   response: AssistantAnswer;
 }
 
-type View = 'overview' | 'portfolio' | 'loan-detail' | 'collections' | 'assistant';
+interface OllamaStatus {
+  enabled: boolean;
+  modelName: string | null;
+  baseUrl: string | null;
+}
+
+interface OllamaAnswer {
+  assistantMode: 'LOCAL_OLLAMA';
+  modelName: string;
+  answer: string;
+  generatedAt: string;
+  sourceNote: string;
+  availableTools: string[];
+}
+
+interface RagKnowledgeSource {
+  documentId: string;
+  title: string;
+  section: string;
+}
+
+interface RagAnswer {
+  status: 'ANSWERED' | 'INSUFFICIENT_KNOWLEDGE';
+  question: string;
+  answer: string;
+  retrievalMode: 'MOCK_RAG';
+  retrievalMethod: string;
+  generatedAt: string;
+  sources: {
+    documentId: string;
+    title: string;
+    section: string;
+    excerpt: string;
+    matchedTerms: number;
+  }[];
+}
+
+type View = 'overview' | 'portfolio' | 'loan-detail' | 'collections' | 'assistant' | 'ollama' | 'rag';
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 @Component({
@@ -258,6 +295,20 @@ export class App implements OnInit {
   protected readonly assistantState = signal<LoadState>('idle');
   protected readonly assistantError = signal('');
   protected readonly assistantMessages = signal<AssistantMessage[]>([]);
+  protected readonly ollamaStatus = signal<OllamaStatus | null>(null);
+  protected readonly ollamaStatusState = signal<LoadState>('idle');
+  protected readonly ollamaStatusError = signal('');
+  protected readonly ollamaQuestion = signal('');
+  protected readonly ollamaAnswer = signal<OllamaAnswer | null>(null);
+  protected readonly ollamaAskState = signal<LoadState>('idle');
+  protected readonly ollamaAskError = signal('');
+  protected readonly ragQuestion = signal('');
+  protected readonly ragKnowledgeSources = signal<RagKnowledgeSource[]>([]);
+  protected readonly ragKnowledgeState = signal<LoadState>('idle');
+  protected readonly ragKnowledgeError = signal('');
+  protected readonly ragAnswer = signal<RagAnswer | null>(null);
+  protected readonly ragAskState = signal<LoadState>('idle');
+  protected readonly ragAskError = signal('');
   protected readonly activityHistory = signal<CollectionActivity[]>([]);
   protected readonly activityHistoryState = signal<LoadState>('idle');
   protected readonly activityHistoryError = signal('');
@@ -349,6 +400,97 @@ export class App implements OnInit {
   protected showAssistant(): void {
     this.view.set('assistant');
     this.selectedLoan.set(null);
+  }
+
+  protected showOllamaDemo(): void {
+    this.view.set('ollama');
+    this.selectedLoan.set(null);
+    this.loadOllamaStatus();
+  }
+
+  protected showRagDemo(): void {
+    this.view.set('rag');
+    this.selectedLoan.set(null);
+    if (this.ragKnowledgeState() === 'idle' || this.ragKnowledgeState() === 'error') {
+      this.loadRagKnowledge();
+    }
+  }
+
+  protected retryRagKnowledge(): void {
+    this.loadRagKnowledge();
+  }
+
+  protected updateRagQuestion(event: Event): void {
+    if (event.target instanceof HTMLTextAreaElement) {
+      this.ragQuestion.set(event.target.value);
+    }
+  }
+
+  protected askRag(): void {
+    const question = this.ragQuestion().trim();
+    if (!question || this.ragAskState() === 'loading') {
+      return;
+    }
+    this.ragAskState.set('loading');
+    this.ragAskError.set('');
+    this.ragAnswer.set(null);
+    this.http
+      .post<RagAnswer>('/api/demo/rag/ask', { question })
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.ragAskState.set('error');
+          this.ragAskError.set('Knowledge retrieval failed. Check the API connection and try again.');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((answer) => {
+        if (answer) {
+          this.ragAnswer.set(answer);
+          this.ragAskState.set('ready');
+          this.ragQuestion.set('');
+        }
+      });
+  }
+
+  protected updateOllamaQuestion(event: Event): void {
+    if (event.target instanceof HTMLTextAreaElement) {
+      this.ollamaQuestion.set(event.target.value);
+    }
+  }
+
+  protected askOllama(): void {
+    const question = this.ollamaQuestion().trim();
+    if (!question || this.ollamaAskState() === 'loading') {
+      return;
+    }
+    this.ollamaAskState.set('loading');
+    this.ollamaAskError.set('');
+    this.ollamaAnswer.set(null);
+    this.http
+      .post<OllamaAnswer>('/api/demo/ollama/ask', { question })
+      .pipe(
+        timeout({ first: 180_000 }),
+        catchError((error: unknown) => {
+          this.ollamaAskState.set('error');
+          const reason = error instanceof HttpErrorResponse && error.status === 503
+            ? 'Local Ollama mode is disabled. Start the app with SPRING_PROFILES_ACTIVE=ollama.'
+            : error instanceof HttpErrorResponse && error.status === 0
+              ? 'The app or local Ollama did not respond. Confirm the Ollama server is running, the model is downloaded, and try again.'
+              : 'The local model request failed. Check Ollama and the selected model, then try again.';
+          this.ollamaAskError.set(reason);
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((answer) => {
+        if (answer) {
+          this.ollamaAnswer.set(answer);
+          this.ollamaAskState.set('ready');
+          this.ollamaQuestion.set('');
+        }
+      });
   }
 
   protected setAssistantPrompt(prompt: string): void {
@@ -708,6 +850,50 @@ export class App implements OnInit {
             this.selectedMonth.set(analytics.periodStart.slice(0, 7));
           }
           this.analyticsState.set('ready');
+        }
+      });
+  }
+
+  private loadOllamaStatus(): void {
+    this.ollamaStatusState.set('loading');
+    this.ollamaStatusError.set('');
+    this.http
+      .get<OllamaStatus>('/api/demo/ollama/status')
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.ollamaStatusState.set('error');
+          this.ollamaStatusError.set('Could not read the app configuration. Check the API connection.');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((status) => {
+        if (status) {
+          this.ollamaStatus.set(status);
+          this.ollamaStatusState.set('ready');
+        }
+      });
+  }
+
+  private loadRagKnowledge(): void {
+    this.ragKnowledgeState.set('loading');
+    this.ragKnowledgeError.set('');
+    this.http
+      .get<RagKnowledgeSource[]>('/api/demo/rag/knowledge')
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.ragKnowledgeState.set('error');
+          this.ragKnowledgeError.set('The approved demo knowledge base could not be loaded.');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((sources) => {
+        if (sources) {
+          this.ragKnowledgeSources.set(sources);
+          this.ragKnowledgeState.set('ready');
         }
       });
   }

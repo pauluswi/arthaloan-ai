@@ -168,6 +168,39 @@ claims. This is a mock-AI showcase, not a connected LLM, and does not
 fulfill production authorization, audit, privacy, or generative-AI
 requirements. Interactions are not persisted.
 
+## Optional Spring AI and Ollama
+
+The separate Ollama assistant page is enabled with the Spring `ollama`
+profile. Spring AI 2.0.x uses the configured Ollama chat model and exposes
+only two annotated tools: `portfolioAnalytics` and `collectionWorklist`.
+These return synthetic snapshot data and do not provide account-detail or
+write/action access. The model generates the natural-language response;
+the tool results remain the only approved source for portfolio facts.
+
+The default app configuration disables Spring AI chat, so the existing
+mock assistant and no-Docker startup do not require Ollama. In Ollama mode,
+the request is sent to the configured Ollama server; keep it on a trusted
+local endpoint and use synthetic prompts only. Model downloads are never
+performed automatically. The local model can still produce inaccurate
+explanations, so validate its answer against the displayed tool data.
+
+## Mock RAG knowledge demo
+
+The separate Knowledge RAG page uses `GET /api/demo/rag/knowledge` to list
+its approved source sections and `POST /api/demo/rag/ask` to retrieve
+content. The curated in-memory corpus contains demo-only metric
+definitions, collection prioritization rules, risk-score limitations, and
+synthetic-data caveats.
+
+Retrieval is local keyword overlap: the question is tokenized, common
+stopwords are ignored, and the top three sources with matching terms are
+returned with their excerpts and document IDs. The response is composed
+from those retrieved excerpts only. If no source matches, the API returns
+`INSUFFICIENT_KNOWLEDGE` with no citations rather than guessing. This is a
+mock RAG demonstration, not semantic/vector retrieval: it does not use
+embeddings, a vector database, Spring AI, or an LLM. No internal banking
+documents are included.
+
 ## Limitations
 
 This generator is a deterministic demo fixture, not a financial

@@ -27,6 +27,24 @@ Stop the demo with `Ctrl+C`. The dashboard shows deterministic portfolio
 analytics backed by the synthetic snapshot; no external model or database
 is required.
 
+## Optional Spring AI + local Ollama demo
+
+The **Spring AI + Ollama** menu is a separate page from the simulated AI
+copilot. To enable it, install Ollama, start its local server, and download
+the default model:
+
+```sh
+ollama pull llama3.2:3b
+SPRING_PROFILES_ACTIVE=ollama ./demo.sh
+```
+
+The profile enables Spring AI's Ollama chat model; without it, Spring AI
+chat is disabled and the existing no-Docker demo behaves as before. The
+page uses the configured local model and exposes only the synthetic
+portfolio analytics and collection worklist as tools. Set `OLLAMA_MODEL`
+to use another downloaded model or `OLLAMA_BASE_URL` to configure the
+Ollama server URL. The app does not download models automatically.
+
 For separate frontend/backend development, start Spring Boot on port 8080,
 then run `npm --prefix frontend start` and open
 [http://localhost:4200](http://localhost:4200). Angular's development-server
@@ -65,6 +83,10 @@ bank data to this repository or local showcase.
 - Simulated AI copilot at `POST /api/demo/assistant/ask`: a local mock model
   interprets questions, selects allowlisted analytics or collection-worklist
   tools, and produces a grounded response with a visible tool trace.
+- Optional Spring AI + Ollama page using a real local chat model with the
+  same restricted synthetic-data tools; disabled by default.
+- Separate Knowledge RAG page retrieving citations from a curated local
+  knowledge base of synthetic metric, policy, and model-limit documents.
 - One-command local startup without Docker; Docker Compose is optional.
 
 The portfolio is generated in memory with seed `20261117` and as-of date
@@ -75,6 +97,8 @@ includes performing, overdue, partial-payment, and reversal scenarios.
 The assistant is explicitly simulated: its mock model uses local intent
 matching and response templates, with no external LLM, API key, or network
 call. Portfolio figures come from the backend tools and synthetic data.
+The separate Ollama page calls a model on the configured Ollama server only
+when the `ollama` Spring profile is enabled.
 Authentication, interaction persistence, and trained-model predictions are
 not implemented.
 Collection activity entries are kept in memory for the current server run

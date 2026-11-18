@@ -249,6 +249,19 @@ The production target extends this flow:
 5. Log prompt/tool/response metadata and outcomes with sensitive values
    minimized or redacted.
 
+The showcase also has an optional Spring AI + Ollama page. It is activated
+only with the `ollama` Spring profile and gives the configured model two
+read-only tools over synthetic analytics and collection worklist data. The
+default profile keeps Spring AI chat disabled, preserving the no-Ollama,
+no-Docker demo.
+
+A separate Knowledge RAG page demonstrates the retrieval stage without an
+LLM or vector database. It searches a small, approved, in-memory corpus of
+synthetic definitions and policies using local keyword overlap, returns
+source excerpts and IDs, and declines when no source matches. A later
+semantic-retrieval iteration can add Ollama embeddings and an in-memory
+vector store without changing the existing assistants.
+
 ## 7. Deployment View
 
 ### Primary local demo target (no Docker)
@@ -260,6 +273,10 @@ JAR, and starts the application. Maven is used if installed; otherwise
 the script downloads a pinned Maven distribution and verifies its
 SHA-512 checksum. The UI and API share one origin and port, avoiding a
 separate frontend server or browser CORS configuration.
+
+The optional local-model experience requires Ollama to be installed and
+running separately. The `ollama` Spring profile configures the Ollama
+endpoint and model; it does not pull the model or require Docker.
 
 ### Optional containerized target
 

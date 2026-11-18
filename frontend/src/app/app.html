@@ -28,6 +28,14 @@
         <span class="nav-icon" aria-hidden="true">✧</span>
         Analytics assistant
       </button>
+      <button class="nav-item" [class.active]="view() === 'ollama'" [attr.aria-current]="view() === 'ollama' ? 'page' : null" (click)="showOllamaDemo()">
+        <span class="nav-icon" aria-hidden="true">◉</span>
+        Spring AI + Ollama
+      </button>
+      <button class="nav-item" [class.active]="view() === 'rag'" [attr.aria-current]="view() === 'rag' ? 'page' : null" (click)="showRagDemo()">
+        <span class="nav-icon" aria-hidden="true">⌕</span>
+        Knowledge RAG
+      </button>
     </nav>
 
     <div class="sidebar-bottom">
@@ -45,6 +53,8 @@
           @case ('portfolio') { Loan portfolio }
           @case ('collections') { Collections }
           @case ('assistant') { Analytics assistant }
+          @case ('ollama') { Spring AI + Ollama }
+          @case ('rag') { Knowledge RAG }
           @case ('loan-detail') {
             <button type="button" class="breadcrumb-link" (click)="backToPortfolio()">Loan portfolio</button>
             <span>/</span>
@@ -370,6 +380,188 @@
           </article>
         } @empty {
           <div class="assistant-empty">Try a suggested question to explore the current portfolio snapshot.</div>
+        }
+      } @else if (view() === 'ollama') {
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">LOCAL GENERATIVE AI</div>
+            <h1>Spring AI + Ollama</h1>
+            <p class="page-subtitle">A real local language model with Spring AI tool calling over synthetic portfolio data.</p>
+          </div>
+          @if (ollamaStatus()?.enabled) {
+            <span class="as-of-badge">{{ ollamaStatus()?.modelName }} · local</span>
+          } @else {
+            <span class="as-of-badge">Optional · no Docker</span>
+          }
+        </div>
+
+        <div class="foundation-notice assistant-notice" role="note">
+          <span class="notice-icon" aria-hidden="true">i</span>
+          <span><strong>Local model mode</strong> — prompt and synthetic tool results are sent to the Ollama service configured on this machine. Do not enter real customer information.</span>
+        </div>
+
+        @if (ollamaStatusState() === 'loading' || ollamaStatusState() === 'idle') {
+          <div class="panel state-panel" role="status">Checking Spring AI configuration…</div>
+        } @else if (ollamaStatusState() === 'error') {
+          <div class="panel state-panel error-state" role="alert">
+            <strong>Configuration unavailable</strong>
+            <span>{{ ollamaStatusError() }}</span>
+          </div>
+        } @else if (ollamaStatus(); as status) {
+          @if (!status.enabled) {
+            <section class="panel ollama-setup">
+              <span class="ollama-state-pill">Not enabled</span>
+              <h2>Start the local AI demo</h2>
+              <p>Install Ollama, download a small model, then run ArthaLoan AI with the optional profile. The regular demo and simulated assistant remain unchanged.</p>
+              <ol>
+                <li>Install and start Ollama from <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">ollama.com/download</a>.</li>
+                <li>Download the default model in a terminal: <code>ollama pull llama3.2:3b</code>.</li>
+                <li>Start this app with Spring AI enabled:</li>
+              </ol>
+              <pre><code>SPRING_PROFILES_ACTIVE=ollama ./demo.sh</code></pre>
+              <p class="ollama-footnote">To choose another local model, set <code>OLLAMA_MODEL</code>. To use a different local Ollama server, set <code>OLLAMA_BASE_URL</code>. Model downloads are managed by Ollama, not this application.</p>
+            </section>
+          } @else {
+            <section class="ollama-config-row" aria-label="Local model configuration">
+              <span><strong>Spring AI</strong> enabled</span>
+              <span>Model <strong>{{ status.modelName }}</strong></span>
+              <span>Ollama <strong>{{ status.baseUrl }}</strong></span>
+            </section>
+            <section class="panel assistant-composer">
+              <label for="ollama-question">Ask the local model</label>
+              <textarea
+                id="ollama-question"
+                rows="3"
+                maxlength="1000"
+                [value]="ollamaQuestion()"
+                (input)="updateOllamaQuestion($event)"
+                placeholder="What should I review first in collections?"
+                [disabled]="ollamaAskState() === 'loading'"></textarea>
+              <div class="assistant-composer-footer">
+                <span>The first response may take a while while Ollama loads the model.</span>
+                <button class="primary-button" type="button" (click)="askOllama()" [disabled]="!ollamaQuestion().trim() || ollamaAskState() === 'loading'">
+                  {{ ollamaAskState() === 'loading' ? 'Waiting for local model…' : 'Ask local model' }}
+                </button>
+              </div>
+              <div class="assistant-prompts" aria-label="Example questions">
+                <button type="button" (click)="ollamaQuestion.set('What should I review first in collections?')">What to review first?</button>
+                <button type="button" (click)="ollamaQuestion.set('Summarize the portfolio and explain PAR 30.')">Summarize PAR 30</button>
+                <button type="button" (click)="ollamaQuestion.set('Explain the delinquency distribution.')">Explain delinquency</button>
+              </div>
+            </section>
+
+            @if (ollamaAskState() === 'error') {
+              <div class="panel state-panel error-state" role="alert">
+                <strong>Local model request failed</strong>
+                <span>{{ ollamaAskError() }}</span>
+              </div>
+            }
+            @if (ollamaAnswer(); as answer) {
+              <article class="panel assistant-answer">
+                <span class="assistant-model-badge">Spring AI · {{ answer.modelName }} · real local model</span>
+                <p class="assistant-answer-text">{{ answer.answer }}</p>
+                <div class="assistant-provenance">
+                  <span>{{ answer.sourceNote }}</span>
+                  <span>Available data tools: {{ answer.availableTools.join(', ') }}</span>
+                  <span>Response time: {{ answer.generatedAt | date: 'medium' }}</span>
+                </div>
+              </article>
+            }
+          }
+        }
+      } @else if (view() === 'rag') {
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">KNOWLEDGE RETRIEVAL</div>
+            <h1>Banking knowledge RAG</h1>
+            <p class="page-subtitle">Retrieve approved demo guidance and inspect exactly which sources support the answer.</p>
+          </div>
+          <span class="as-of-badge">Mock RAG · local</span>
+        </div>
+
+        <div class="foundation-notice assistant-notice" role="note">
+          <span class="notice-icon" aria-hidden="true">i</span>
+          <span><strong>Mock retrieval; synthetic demo knowledge only.</strong> This page uses local keyword matching, not embeddings or a connected LLM. No internal or customer banking documents are included.</span>
+        </div>
+
+        @if (ragKnowledgeState() === 'loading' || ragKnowledgeState() === 'idle') {
+          <div class="panel state-panel" role="status">Loading approved demo knowledge sources…</div>
+        } @else if (ragKnowledgeState() === 'error') {
+          <div class="panel state-panel error-state" role="alert">
+            <strong>Knowledge sources unavailable</strong>
+            <span>{{ ragKnowledgeError() }}</span>
+            <button class="secondary-button" type="button" (click)="retryRagKnowledge()">Try again</button>
+          </div>
+        } @else {
+          <section class="panel rag-question-panel">
+            <label for="rag-question">Ask about a metric, policy, or demo rule</label>
+            <textarea
+              id="rag-question"
+              rows="3"
+              maxlength="500"
+              [value]="ragQuestion()"
+              (input)="updateRagQuestion($event)"
+              placeholder="How is PAR 30 calculated?"
+              [disabled]="ragAskState() === 'loading'"></textarea>
+            <div class="assistant-composer-footer">
+              <span>Answers are composed only from retrieved source excerpts.</span>
+              <button class="primary-button" type="button" (click)="askRag()" [disabled]="!ragQuestion().trim() || ragAskState() === 'loading'">
+                {{ ragAskState() === 'loading' ? 'Searching sources…' : 'Retrieve answer' }}
+              </button>
+            </div>
+            <div class="assistant-prompts" aria-label="Example knowledge questions">
+              <button type="button" (click)="ragQuestion.set('How is PAR 30 calculated?')">How is PAR 30 calculated?</button>
+              <button type="button" (click)="ragQuestion.set('What does collection prioritization consider?')">Collection priority factors</button>
+              <button type="button" (click)="ragQuestion.set('Is the demo risk score a real model?')">About the demo risk score</button>
+              <button type="button" (click)="ragQuestion.set('Can these synthetic data show historical changes?')">Synthetic data limitations</button>
+            </div>
+          </section>
+
+          @if (ragAskState() === 'error') {
+            <div class="panel state-panel error-state" role="alert">
+              <strong>Retrieval unavailable</strong>
+              <span>{{ ragAskError() }}</span>
+            </div>
+          }
+          @if (ragAnswer(); as answer) {
+            <article class="panel assistant-answer" [class.assistant-answer-limited]="answer.status !== 'ANSWERED'">
+              <span class="assistant-model-badge">Mock RAG · keyword retrieval</span>
+              <div class="assistant-question-label">RETRIEVED ANSWER</div>
+              <p class="assistant-answer-text">{{ answer.answer }}</p>
+              <div class="assistant-provenance">
+                <span>{{ answer.retrievalMethod }}</span>
+                <span>Retrieved {{ answer.sources.length }} source{{ answer.sources.length === 1 ? '' : 's' }} · {{ answer.generatedAt | date: 'medium' }}</span>
+              </div>
+              @if (answer.sources.length > 0) {
+                <div class="rag-source-list">
+                  @for (source of answer.sources; track source.documentId) {
+                    <details class="rag-source">
+                      <summary>
+                        <span><strong>{{ source.title }}</strong> · {{ source.section }}</span>
+                        <span class="rag-match-count">{{ source.matchedTerms }} matching terms</span>
+                      </summary>
+                      <p>{{ source.excerpt }}</p>
+                      <small>Source ID: {{ source.documentId }}</small>
+                    </details>
+                  }
+                </div>
+              }
+            </article>
+          } @else {
+            <section class="rag-library">
+              <div class="panel-heading">
+                <div><h2>Approved demo knowledge</h2><p>{{ ragKnowledgeSources().length }} curated source sections available for retrieval</p></div>
+              </div>
+              <div class="rag-library-grid">
+                @for (source of ragKnowledgeSources(); track source.documentId) {
+                  <article class="panel rag-library-card">
+                    <span>{{ source.title }}</span>
+                    <strong>{{ source.section }}</strong>
+                  </article>
+                }
+              </div>
+            </section>
+          }
         }
       } @else if (view() === 'collections') {
         <div class="page-heading">
