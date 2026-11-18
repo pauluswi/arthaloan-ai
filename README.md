@@ -1,36 +1,152 @@
 # ArthaLoan AI
 
-ArthaLoan AI is a decision-support showcase for synthetic loan portfolio
-analytics, repayment-risk insights, collection prioritization, and
-evidence-grounded AI. It does not make credit decisions or contact
-borrowers.
+[![Java 25](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Spring Boot 4.0.0](https://img.shields.io/badge/Spring_Boot-4.0.0-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Angular 22](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white)](https://angular.dev/)
+[![MCP protocol 2025-03-26](https://img.shields.io/badge/MCP-2025--03--26-5B5BD6)](https://modelcontextprotocol.io/)
+[![Docker-free demo](https://img.shields.io/badge/demo-Docker--free-2E8B57)](#run-the-demo)
 
-## Run the demo (no Docker)
+ArthaLoan AI is a local banking showcase for synthetic loan-portfolio
+analytics, loan investigation, collection prioritization, and governed AI
+integration patterns. It is designed to run quickly without Docker,
+external banking services, or an AI model.
+
+All records are deterministic synthetic demo data. The application is for
+demonstration and decision support only: it does not make lending
+decisions, contact borrowers, or initiate account-changing actions. Do
+not add real customer or confidential banking data.
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    U[Demo user] --> UI[Angular demo UI]
+    UI --> API[Spring Boot API]
+    DATA[(Synthetic portfolio)]
+    API --> DATA
+
+    API --> ANA[Analytics and loan services]
+    API --> COL[Collection worklist]
+
+    UI -->|Simulated assistant page| SIM[Mock assistant]
+    SIM --> ANA
+    SIM --> COL
+
+    UI -->|Optional Ollama page| OLL[Spring AI + local Ollama]
+    OLL --> ANA
+    OLL --> COL
+
+    UI -->|Knowledge RAG page| RAG[Local keyword retrieval]
+    RAG --> KB[(Curated demo knowledge)]
+
+    UI -->|MCP tools page| MCP[Mock MCP server<br/>JSON-RPC]
+    MCP --> ANA
+    MCP --> COL
+    MCP --> RAG
+```
+
+The assistant, optional Ollama, RAG, and MCP are separate demos sharing
+backend capabilities. The simulated assistant and Ollama can call
+analytics and collection tools; the RAG page retrieves cited local
+knowledge. The MCP page demonstrates discovering and calling read-only
+tools, including knowledge search—it is **not currently connected as an
+MCP client to the Ollama agent**. Everything uses synthetic data.
+
+## Run the demo
 
 Requirements: Java 25 and Node.js 22.22.3+, 24.15.0+, or 26+ with npm.
-The script uses an installed Maven if available; otherwise it downloads
-Maven 3.9.9 into the user cache.
+The startup script uses an installed Maven if available; otherwise it
+downloads Maven 3.9.9 into the user cache.
 
 ```sh
 ./demo.sh
 ```
 
 Open [http://localhost:8080](http://localhost:8080). The script installs
-the frontend's locked dependencies, builds Angular, packages its static
-files into the Spring Boot application, and starts the single executable
-JAR. The backend health endpoint is available at
-[http://localhost:8080/api/health](http://localhost:8080/api/health).
-Set `SERVER_PORT` to use another port, for example
-`SERVER_PORT=8090 ./demo.sh`.
+the frontend's locked dependencies, builds Angular, packages the frontend
+into the Spring Boot application, and starts a single executable JAR.
+Stop it with `Ctrl+C`. Set `SERVER_PORT` to choose another port:
 
-Stop the demo with `Ctrl+C`. The dashboard shows deterministic portfolio
-analytics backed by the synthetic snapshot; no external model or database
-is required.
+```sh
+SERVER_PORT=8090 ./demo.sh
+```
 
-## Optional Spring AI + local Ollama demo
+No database, Docker, Ollama installation, or API key is needed for the
+default demo.
 
-The **Spring AI + Ollama** menu is a separate page from the simulated AI
-copilot. To enable it, install Ollama, start its local server, and download
+## What the demo includes
+
+- **Portfolio dashboard** — filterable repayment metrics, delinquency
+  distribution, PAR 1/7/30/90, and repayment trends.
+- **Loan portfolio** — synthetic account search and investigation with
+  installment schedules, payment allocations, reversals, DPD, and
+  outstanding balances.
+- **Risk monitoring** — deterministic, explainable 30-day demo scores.
+  These are rule-based examples, not trained models or calibrated
+  probabilities.
+- **Collections** — a versioned, ranked worklist with visible priority
+  factors, plus simulated collection activity recording. No contact is
+  sent and no action is taken automatically.
+- **Analytics assistant** — a deterministic mock assistant that selects
+  from allowlisted analytics and collection-worklist tools and displays
+  its evidence and tool trace. It does not call an LLM.
+- **Knowledge RAG** — local keyword retrieval from a small curated set of
+  synthetic metric and policy notes. Answers include cited excerpts and
+  return an explicit no-match response. This page does not use embeddings,
+  a vector database, or an LLM.
+- **MCP tools** — a mock MCP server interface for discovering and calling
+  read-only tools over JSON-RPC. The page shows tool schemas, results, and
+  recent audit events.
+- **Spring AI + Ollama** — an optional page for using a local chat model
+  with restricted tools over synthetic analytics and collection data.
+  Disabled by default.
+
+The default synthetic portfolio has 12 customers, 12 loans, and 144
+installments. Its seed is `20261117`, and its as-of date is `2026-10-31`.
+Override them with `ARTHALOAN_DEMO_SEED` and
+`ARTHALOAN_DEMO_AS_OF_DATE` when launching the backend. Metric
+definitions, calculation conventions, and data limitations are in
+[`docs/data-dictionary.md`](docs/data-dictionary.md).
+
+## Mock MCP server
+
+The **MCP tools** page initializes the mock server, discovers its
+allowlisted tools, and lets you call them with validated inputs. The
+backend endpoint is `POST /api/demo/mcp`; the demo implements JSON-RPC
+initialization and the `tools/list` and `tools/call` methods using protocol
+version `2025-03-26`.
+
+Available tools:
+
+| Tool | Purpose |
+|---|---|
+| `get_portfolio_summary` | Return synthetic portfolio totals and PAR 30. |
+| `get_loan_snapshot` | Look up one synthetic loan using an ID such as `LN-002`. |
+| `get_collection_worklist` | Return a bounded number of ranked overdue accounts for review. |
+| `search_approved_knowledge` | Search the curated demo knowledge and return cited sources. |
+
+`GET /api/demo/mcp/audit` returns up to 50 recent in-memory tool-call
+events. It records the tool name, outcome, input field names, and time;
+input values are not stored. Events clear when the server restarts.
+
+This is a protocol demonstration, not a production MCP deployment. It
+has no authenticated MCP client, caller identity, or banking
+authorization. **MCP standardizes tool communication; it does not itself
+provide authentication or authorization.** Do not expose this demo
+endpoint to untrusted users or connect it to real banking data.
+
+For example, list the tools with curl while the app is running:
+
+```sh
+curl -s http://localhost:8080/api/demo/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+## Optional Spring AI + local Ollama
+
+The Ollama page is separate from the simulated assistant and mock MCP
+page. To enable it, install Ollama, start its local server, and download
 the default model:
 
 ```sh
@@ -38,77 +154,54 @@ ollama pull llama3.2:3b
 SPRING_PROFILES_ACTIVE=ollama ./demo.sh
 ```
 
-The profile enables Spring AI's Ollama chat model; without it, Spring AI
-chat is disabled and the existing no-Docker demo behaves as before. The
-page uses the configured local model and exposes only the synthetic
-portfolio analytics and collection worklist as tools. Set `OLLAMA_MODEL`
-to use another downloaded model or `OLLAMA_BASE_URL` to configure the
-Ollama server URL. The app does not download models automatically.
+The configured model is called only with the `ollama` Spring profile.
+This optional page exposes synthetic portfolio analytics and collection
+worklist tools; it does not expose account-changing operations. Set
+`OLLAMA_MODEL` to use another downloaded model or `OLLAMA_BASE_URL` to
+configure the Ollama server URL. The application does not download models
+automatically. Use synthetic prompts only.
 
-For separate frontend/backend development, start Spring Boot on port 8080,
-then run `npm --prefix frontend start` and open
-[http://localhost:4200](http://localhost:4200). Angular's development-server
-proxy forwards `/api` requests to the backend.
+## Development
 
-## Optional Docker setup
+For separate frontend/backend development, use two terminals. With Maven
+installed, start Spring Boot in the first:
 
-Docker Compose remains available for trying the containerized setup:
+```sh
+mvn spring-boot:run
+```
+
+Then start Angular in the second:
+
+```sh
+npm --prefix frontend start
+```
+
+Open [http://localhost:4200](http://localhost:4200). The Angular
+development-server proxy forwards `/api` requests to the backend.
+
+Docker Compose is an optional alternative:
 
 ```sh
 docker compose up --build
 ```
 
-Open [http://localhost:4200](http://localhost:4200) for that setup.
+## API overview
 
-All demo data will be synthetic. Do not add real customer or confidential
-bank data to this repository or local showcase.
+| Endpoint | Description |
+|---|---|
+| `GET /api/health` | Application health. |
+| `GET /api/demo/portfolio` | Full synthetic portfolio snapshot. |
+| `GET /api/demo/analytics` | Portfolio metrics and trends, with optional filters. |
+| `GET /api/demo/loans` and `GET /api/demo/loans/{loanId}` | Loan list and investigation details. |
+| `GET /api/demo/loans/{loanId}/risk` | Illustrative deterministic risk score. |
+| `GET /api/demo/collections/worklist` | Ranked synthetic collection worklist. |
+| `POST /api/demo/assistant/ask` | Simulated analytics assistant. |
+| `GET /api/demo/rag/knowledge` and `POST /api/demo/rag/ask` | Curated knowledge sources and mock RAG retrieval. |
+| `POST /api/demo/mcp` | Mock MCP JSON-RPC initialization and tool requests. |
+| `GET /api/demo/mcp/audit` | Bounded in-memory MCP tool-call audit. |
+| `/api/demo/ollama/*` | Optional local Ollama assistant endpoints. |
 
-## Current foundation
-
-- Angular dashboard with filterable portfolio metrics, delinquency buckets,
-  PAR, repayment trends, portfolio search, and loan investigation.
-- Java 25 / Spring Boot API with a health endpoint.
-- Repeatable synthetic demo portfolio available at
-  `GET /api/demo/portfolio` (12 customers, 12 loans, 144 installments).
-- Loan list and investigation APIs at `GET /api/demo/loans` and
-  `GET /api/demo/loans/{loanId}`, including payment-aware DPD, schedule
-  balances, and reversal history.
-- Interactive portfolio search and loan detail screens in the dashboard.
-- Deterministic analytics at `GET /api/demo/analytics`, including period and
-  dimension filters, repayment rate, delinquency distribution, and PAR 1/7/30/90.
-- Explainable 30-day loan risk scores at `GET /api/demo/loans/{loanId}/risk`,
-  using documented deterministic demo rules rather than a trained model.
-- Ranked collection worklist at `GET /api/demo/collections/worklist`, with
-  policy version, priority factors, and links to loan investigation.
-- Simulated AI copilot at `POST /api/demo/assistant/ask`: a local mock model
-  interprets questions, selects allowlisted analytics or collection-worklist
-  tools, and produces a grounded response with a visible tool trace.
-- Optional Spring AI + Ollama page using a real local chat model with the
-  same restricted synthetic-data tools; disabled by default.
-- Separate Knowledge RAG page retrieving citations from a curated local
-  knowledge base of synthetic metric, policy, and model-limit documents.
-- Separate mock MCP Server page using JSON-RPC to discover and call four
-  allowlisted, read-only tools over synthetic portfolio and policy data.
-- One-command local startup without Docker; Docker Compose is optional.
-
-The portfolio is generated in memory with seed `20261117` and as-of date
-`2026-10-31`. Override them with `ARTHALOAN_DEMO_SEED` and
-`ARTHALOAN_DEMO_AS_OF_DATE` when launching the backend. The generator
-includes performing, overdue, partial-payment, and reversal scenarios.
-
-The assistant is explicitly simulated: its mock model uses local intent
-matching and response templates, with no external LLM, API key, or network
-call. Portfolio figures come from the backend tools and synthetic data.
-The mock MCP endpoint at `POST /api/demo/mcp` supports initialization,
-tool discovery, and tool calls; `GET /api/demo/mcp/audit` returns the
-bounded in-memory call history without storing argument values. This
-showcases protocol-based tool access, not production authentication or
-banking authorization—MCP itself does not provide those controls.
-The separate Ollama page calls a model on the configured Ollama server only
-when the `ollama` Spring profile is enabled.
-Authentication, interaction persistence, and trained-model predictions are
-not implemented.
-Collection activity entries are kept in memory for the current server run
-and are cleared on restart. Analytics, demo risk-score and worklist
-conventions, and generated-data limitations are described in
-[`docs/data-dictionary.md`](docs/data-dictionary.md).
+Collection activity entries and MCP audit events are held in memory and
+are cleared when the application restarts. Authentication, durable audit
+storage, production banking integrations, and trained model predictions
+are not implemented.
