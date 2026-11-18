@@ -27,6 +27,9 @@ flowchart LR
 
     API --> ANA[Analytics and loan services]
     API --> COL[Collection worklist]
+    API --> SCORE[Explainable risk rules]
+    UI -->|Risk monitoring page| SCORE
+    COL --> SCORE
 
     UI -->|Simulated assistant page| SIM[Mock assistant]
     SIM --> ANA
@@ -82,9 +85,12 @@ default demo.
   installment schedules, payment allocations, reversals, DPD, and
   outstanding balances.
 - **Risk monitoring** — deterministic, explainable 30-day demo scores.
-  The portfolio screen summarizes risk bands and exposes each loan's
-  score factors. These are rule-based examples, not trained models,
-  calibrated probabilities, or validated forecasts.
+  The portfolio screen summarizes risk bands, average score, and
+  per-loan contributing factors, with links to loan investigation. The
+  rules use current DPD, unpaid recent installments, and recent payment
+  reversals. These points are illustrative risk signals—not a trained
+  model, calibrated probability, or validated forecast of future
+  delinquency.
 - **Collections** — a versioned, ranked worklist with visible priority
   factors, plus simulated collection activity recording. No contact is
   sent and no action is taken automatically.
@@ -108,6 +114,25 @@ Override them with `ARTHALOAN_DEMO_SEED` and
 `ARTHALOAN_DEMO_AS_OF_DATE` when launching the backend. Metric
 definitions, calculation conventions, and data limitations are in
 [`docs/data-dictionary.md`](docs/data-dictionary.md).
+
+### What the risk score means
+
+The risk screen makes the existing loan-level demo score visible across
+the portfolio. It is calculated from **current snapshot evidence**:
+DPD (up to 40 points), unpaid balances in the three most recent due
+installments (up to 30 points), and a recent payment reversal (15 points
+when present). Scores are grouped into LOW, MODERATE, and HIGH bands and
+shown with the factors that contributed to each score. The “30-day”
+label describes the demo's configured horizon; the current rules do not
+estimate a statistically validated probability that a loan will become
+delinquent in the next 30 days.
+
+This is intentionally a mock prediction experience for demonstrating
+explainability and risk-monitoring UI. A real predictive model would
+require suitable historical repayment outcomes, leakage-safe features,
+time-based evaluation, calibration, bias checks, and ongoing monitoring.
+The synthetic fixture is not suitable for training or validating such a
+model.
 
 ## Mock MCP server
 
@@ -194,8 +219,8 @@ docker compose up --build
 | `GET /api/demo/portfolio` | Full synthetic portfolio snapshot. |
 | `GET /api/demo/analytics` | Portfolio metrics and trends, with optional filters. |
 | `GET /api/demo/loans` and `GET /api/demo/loans/{loanId}` | Loan list and investigation details. |
-| `GET /api/demo/loans/{loanId}/risk` | Illustrative deterministic risk score. |
-| `GET /api/demo/risk-monitoring` | Portfolio-wide mock risk scores, risk bands, and contributing factors. |
+| `GET /api/demo/loans/{loanId}/risk` | One loan's explainable, deterministic demo risk score and factors. |
+| `GET /api/demo/risk-monitoring` | Portfolio-wide demo scores, band counts, average score, and contributing factors. |
 | `GET /api/demo/collections/worklist` | Ranked synthetic collection worklist. |
 | `POST /api/demo/assistant/ask` | Simulated analytics assistant. |
 | `GET /api/demo/rag/knowledge` and `POST /api/demo/rag/ask` | Curated knowledge sources and mock RAG retrieval. |
