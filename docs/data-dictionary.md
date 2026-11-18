@@ -201,6 +201,32 @@ mock RAG demonstration, not semantic/vector retrieval: it does not use
 embeddings, a vector database, Spring AI, or an LLM. No internal banking
 documents are included.
 
+## Mock MCP server
+
+The separate MCP demo is available at `POST /api/demo/mcp`. It implements
+JSON-RPC initialization, `tools/list`, and `tools/call` for the
+`2025-03-26` protocol version. The allowlisted read-only tools are:
+
+| Tool | Inputs | Returned data |
+|---|---|---|
+| `get_portfolio_summary` | None | As-of date, currency, active-loan count, outstanding principal, repayment rate, and PAR 30. |
+| `get_loan_snapshot` | Synthetic `loanId` matching `LN-###` | One loan summary, including synthetic customer reference and payment status. |
+| `get_collection_worklist` | Optional integer `limit` from 1 to 10 (default 5) | Bounded ranked worklist subset and total-count metadata. |
+| `search_approved_knowledge` | Required `question` up to 500 characters | Mock keyword retrieval answer and cited synthetic source excerpts. |
+
+Unexpected arguments, malformed loan IDs, unknown loans, and out-of-range
+worklist limits are rejected as tool errors. The service has no tools that
+write loan or payment data, contact borrowers, or initiate decisions.
+`GET /api/demo/mcp/audit` exposes up to 50 recent in-memory tool-call
+events with tool names, outcomes, input field names, and timestamps; input
+values are not retained, and events are cleared on restart.
+
+This is a local protocol showcase, not a production MCP deployment.
+Authentication and caller authorization are not implemented, and MCP
+does not provide them. Any real deployment must authenticate callers,
+authorize each tool operation server-side, protect the transport, and
+apply appropriate audit retention and privacy controls.
+
 ## Limitations
 
 This generator is a deterministic demo fixture, not a financial

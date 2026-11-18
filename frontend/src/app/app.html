@@ -36,6 +36,10 @@
         <span class="nav-icon" aria-hidden="true">⌕</span>
         Knowledge RAG
       </button>
+      <button class="nav-item" [class.active]="view() === 'mcp'" [attr.aria-current]="view() === 'mcp' ? 'page' : null" (click)="showMcpDemo()">
+        <span class="nav-icon" aria-hidden="true">⇄</span>
+        MCP tools
+      </button>
     </nav>
 
     <div class="sidebar-bottom">
@@ -55,6 +59,7 @@
           @case ('assistant') { Analytics assistant }
           @case ('ollama') { Spring AI + Ollama }
           @case ('rag') { Knowledge RAG }
+          @case ('mcp') { MCP tools }
           @case ('loan-detail') {
             <button type="button" class="breadcrumb-link" (click)="backToPortfolio()">Loan portfolio</button>
             <span>/</span>
@@ -562,6 +567,108 @@
               </div>
             </section>
           }
+        }
+      } @else if (view() === 'mcp') {
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">GOVERNED AI INTEGRATION</div>
+            <h1>Mock MCP server</h1>
+            <p class="page-subtitle">Discover allowlisted banking demo tools and inspect their validated, read-only results.</p>
+          </div>
+          <span class="as-of-badge">JSON-RPC · mock</span>
+        </div>
+
+        <div class="foundation-notice assistant-notice" role="note">
+          <span class="notice-icon" aria-hidden="true">i</span>
+          <span><strong>Synthetic data only; read-only tools.</strong> MCP standardizes how a client discovers and calls tools; it does not provide banking authorization. This local mock has no authenticated agent connection, no real customer data, and no account-changing actions.</span>
+        </div>
+
+        @if (mcpServerState() === 'loading' || mcpServerState() === 'idle') {
+          <div class="panel state-panel" role="status">Initializing MCP and discovering available tools…</div>
+        } @else if (mcpServerState() === 'error') {
+          <div class="panel state-panel error-state" role="alert">
+            <strong>MCP server unavailable</strong>
+            <span>{{ mcpServerError() }}</span>
+            <button class="secondary-button" type="button" (click)="retryMcpServer()">Try again</button>
+          </div>
+        } @else {
+          <div class="ollama-config-row mcp-server-meta">
+            <span>Endpoint <strong>POST /api/demo/mcp</strong></span>
+            <span>Protocol <strong>{{ mcpProtocolVersion() }}</strong></span>
+            <span>Server <strong>{{ mcpServerName() }}</strong></span>
+          </div>
+
+          <section class="mcp-tool-section">
+            <div class="panel-heading">
+              <div><h2>Discovered tools</h2><p>{{ mcpTools().length }} allowlisted tools · read-only · validated inputs</p></div>
+            </div>
+            <div class="rag-library-grid mcp-tool-grid">
+              @for (tool of mcpTools(); track tool.name) {
+                <article class="panel mcp-tool-card">
+                  <div class="mcp-tool-heading">
+                    <h3>{{ tool.name }}</h3>
+                    <span>READ ONLY</span>
+                  </div>
+                  <p>{{ tool.description }}</p>
+                  @if (tool.name === 'get_loan_snapshot') {
+                    <label class="mcp-input-label" [for]="'mcp-loan-' + tool.name">Synthetic loan ID</label>
+                    <input class="mcp-input" [id]="'mcp-loan-' + tool.name" maxlength="20" [value]="mcpLoanId()" (input)="updateMcpLoanId($event)">
+                  } @else if (tool.name === 'get_collection_worklist') {
+                    <label class="mcp-input-label" [for]="'mcp-limit-' + tool.name">Maximum accounts (1–10)</label>
+                    <input class="mcp-input" [id]="'mcp-limit-' + tool.name" type="number" min="1" max="10" step="1" [value]="mcpWorklistLimit()" (input)="updateMcpWorklistLimit($event)">
+                  } @else if (tool.name === 'search_approved_knowledge') {
+                    <label class="mcp-input-label" [for]="'mcp-question-' + tool.name">Knowledge question</label>
+                    <textarea class="mcp-input mcp-textarea" [id]="'mcp-question-' + tool.name" maxlength="500" rows="2" [value]="mcpKnowledgeQuestion()" (input)="updateMcpKnowledgeQuestion($event)"></textarea>
+                  }
+                  <button
+                    class="secondary-button mcp-call-button"
+                    type="button"
+                    [disabled]="mcpCallState() === 'loading' || (tool.name === 'get_loan_snapshot' && !mcpLoanId().trim()) || (tool.name === 'get_collection_worklist' && (mcpWorklistLimit() < 1 || mcpWorklistLimit() > 10 || mcpWorklistLimit() % 1 !== 0)) || (tool.name === 'search_approved_knowledge' && !mcpKnowledgeQuestion().trim())"
+                    (click)="callMcpTool(tool.name)">
+                    {{ mcpCallState() === 'loading' ? 'Calling…' : 'Call tool' }}
+                  </button>
+                </article>
+              }
+            </div>
+          </section>
+
+          @if (mcpCallState() === 'error') {
+            <div class="panel state-panel error-state" role="alert">
+              <strong>Tool call failed</strong>
+              <span>{{ mcpCallError() }}</span>
+            </div>
+          }
+          @if (mcpLastCall(); as lastCall) {
+            <section class="panel mcp-result-panel">
+              <div class="panel-heading">
+                <div><h2>JSON-RPC tool response</h2><p>Structured tool result returned by the mock server</p></div>
+                @if (lastCall.result?.isError) { <span class="mcp-error-badge">Rejected</span> }
+              </div>
+              <pre>{{ lastCall | json }}</pre>
+            </section>
+          }
+
+          <section class="panel mcp-audit-panel">
+            <div class="panel-heading">
+              <div><h2>Recent tool-call audit</h2><p>In-memory demo events · input values are not stored</p></div>
+              <button class="secondary-button" type="button" [disabled]="mcpAuditState() === 'loading'" (click)="refreshMcpAudit()">Refresh</button>
+            </div>
+            @if (mcpAuditState() === 'error') {
+              <p class="mcp-audit-empty" role="alert">Audit events could not be loaded.</p>
+            } @else if (mcpAuditEvents().length === 0) {
+              <p class="mcp-audit-empty">Call a tool to see a governed-access event here.</p>
+            } @else {
+              <div class="mcp-audit-list">
+                @for (event of mcpAuditEvents(); track event.sequence) {
+                  <div class="mcp-audit-row">
+                    <strong>{{ event.toolName }}</strong>
+                    <span>{{ event.outcome }}</span>
+                    <small>{{ event.inputFields.length ? 'Fields: ' + event.inputFields.join(', ') : 'No inputs' }} · {{ event.recordedAt | date: 'short' }}</small>
+                  </div>
+                }
+              </div>
+            }
+          </section>
         }
       } @else if (view() === 'collections') {
         <div class="page-heading">

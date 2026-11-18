@@ -267,7 +267,38 @@ interface RagAnswer {
   }[];
 }
 
-type View = 'overview' | 'portfolio' | 'loan-detail' | 'collections' | 'assistant' | 'ollama' | 'rag';
+interface McpTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    properties: Record<string, { type: string; description?: string; minimum?: number; maximum?: number }>;
+    required: string[];
+  };
+}
+
+interface McpRpcResponse {
+  jsonrpc: '2.0';
+  id: string | number;
+  result?: {
+    protocolVersion?: string;
+    serverInfo?: { name: string; version: string };
+    tools?: McpTool[];
+    isError?: boolean;
+    content?: { type: string; text: string }[];
+    structuredContent?: unknown;
+  };
+  error?: { code: number; message: string };
+}
+
+interface McpAuditEvent {
+  sequence: number;
+  toolName: string;
+  outcome: string;
+  inputFields: string[];
+  recordedAt: string;
+}
+
+type View = 'overview' | 'portfolio' | 'loan-detail' | 'collections' | 'assistant' | 'ollama' | 'rag' | 'mcp';
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 @Component({
@@ -309,6 +340,20 @@ export class App implements OnInit {
   protected readonly ragAnswer = signal<RagAnswer | null>(null);
   protected readonly ragAskState = signal<LoadState>('idle');
   protected readonly ragAskError = signal('');
+  protected readonly mcpServerState = signal<LoadState>('idle');
+  protected readonly mcpServerError = signal('');
+  protected readonly mcpProtocolVersion = signal('');
+  protected readonly mcpServerName = signal('');
+  protected readonly mcpTools = signal<McpTool[]>([]);
+  protected readonly mcpLoanId = signal('LN-002');
+  protected readonly mcpWorklistLimit = signal(5);
+  protected readonly mcpKnowledgeQuestion = signal('How is PAR 30 calculated?');
+  protected readonly mcpCallState = signal<LoadState>('idle');
+  protected readonly mcpCallError = signal('');
+  protected readonly mcpLastCall = signal<McpRpcResponse | null>(null);
+  protected readonly mcpAuditEvents = signal<McpAuditEvent[]>([]);
+  protected readonly mcpAuditState = signal<LoadState>('idle');
+  private mcpRequestSequence = 0;
   protected readonly activityHistory = signal<CollectionActivity[]>([]);
   protected readonly activityHistoryState = signal<LoadState>('idle');
   protected readonly activityHistoryError = signal('');
@@ -414,6 +459,78 @@ export class App implements OnInit {
     if (this.ragKnowledgeState() === 'idle' || this.ragKnowledgeState() === 'error') {
       this.loadRagKnowledge();
     }
+  }
+
+  protected showMcpDemo(): void {
+    this.view.set('mcp');
+    this.selectedLoan.set(null);
+    if (this.mcpServerState() === 'idle' || this.mcpServerState() === 'error') {
+      this.loadMcpServer();
+    }
+  }
+
+  protected retryMcpServer(): void {
+    this.loadMcpServer();
+  }
+
+  protected updateMcpLoanId(event: Event): void {
+    if (event.target instanceof HTMLInputElement) {
+      this.mcpLoanId.set(event.target.value);
+    }
+  }
+
+  protected updateMcpWorklistLimit(event: Event): void {
+    if (event.target instanceof HTMLInputElement) {
+      this.mcpWorklistLimit.set(Number(event.target.value));
+    }
+  }
+
+  protected updateMcpKnowledgeQuestion(event: Event): void {
+    if (event.target instanceof HTMLTextAreaElement) {
+      this.mcpKnowledgeQuestion.set(event.target.value);
+    }
+  }
+
+  protected callMcpTool(toolName: string): void {
+    if (this.mcpCallState() === 'loading') {
+      return;
+    }
+    const argumentsByTool: Record<string, Record<string, string | number>> = {
+      get_portfolio_summary: {},
+      get_loan_snapshot: { loanId: this.mcpLoanId().trim() },
+      get_collection_worklist: { limit: this.mcpWorklistLimit() },
+      search_approved_knowledge: { question: this.mcpKnowledgeQuestion().trim() },
+    };
+    const args = argumentsByTool[toolName];
+    if (!args) {
+      return;
+    }
+
+    this.mcpCallState.set('loading');
+    this.mcpCallError.set('');
+    this.mcpLastCall.set(null);
+    this.http
+      .post<McpRpcResponse>('/api/demo/mcp', this.mcpRequest('tools/call', { name: toolName, arguments: args }))
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.mcpCallState.set('error');
+          this.mcpCallError.set('The MCP tool request failed. Check the API connection and try again.');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((response) => {
+        if (response) {
+          this.mcpLastCall.set(response);
+          this.mcpCallState.set('ready');
+          this.loadMcpAudit();
+        }
+      });
+  }
+
+  protected refreshMcpAudit(): void {
+    this.loadMcpAudit();
   }
 
   protected retryRagKnowledge(): void {
@@ -896,6 +1013,79 @@ export class App implements OnInit {
           this.ragKnowledgeState.set('ready');
         }
       });
+  }
+
+  private loadMcpServer(): void {
+    this.mcpServerState.set('loading');
+    this.mcpServerError.set('');
+    this.http
+      .post<McpRpcResponse>('/api/demo/mcp', this.mcpRequest('initialize', {
+        protocolVersion: '2025-03-26',
+        capabilities: {},
+        clientInfo: { name: 'ArthaLoan Demo UI', version: '1.0.0' },
+      }))
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        switchMap((initialized) => {
+          if (initialized.error || !initialized.result?.serverInfo) {
+            throw new Error('MCP initialization was rejected.');
+          }
+          this.mcpProtocolVersion.set(initialized.result.protocolVersion ?? '');
+          this.mcpServerName.set(initialized.result.serverInfo.name);
+          return this.http.post<McpRpcResponse>('/api/demo/mcp', this.mcpRequest('tools/list'));
+        }),
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.mcpServerState.set('error');
+          this.mcpServerError.set('The mock MCP server could not be initialized or its tools could not be loaded.');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((response) => {
+        if (response?.result?.tools) {
+          this.mcpTools.set(response.result.tools);
+          this.mcpServerState.set('ready');
+          this.loadMcpAudit();
+        } else if (response) {
+          this.mcpServerState.set('error');
+          this.mcpServerError.set(response.error?.message ?? 'The MCP server returned an invalid tools list.');
+        }
+      });
+  }
+
+  private loadMcpAudit(): void {
+    this.mcpAuditState.set('loading');
+    this.http
+      .get<McpAuditEvent[]>('/api/demo/mcp/audit')
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.mcpAuditState.set('error');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((events) => {
+        if (events) {
+          this.mcpAuditEvents.set(events);
+          this.mcpAuditState.set('ready');
+        }
+      });
+  }
+
+  private mcpRequest(method: string, params?: Record<string, unknown>): {
+    jsonrpc: '2.0';
+    id: number;
+    method: string;
+    params?: Record<string, unknown>;
+  } {
+    return {
+      jsonrpc: '2.0',
+      id: ++this.mcpRequestSequence,
+      method,
+      ...(params ? { params } : {}),
+    };
   }
 
   private addFilter(params: URLSearchParams, name: string, value: string): void {

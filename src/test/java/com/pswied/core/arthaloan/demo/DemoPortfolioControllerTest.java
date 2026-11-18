@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpRequest.BodyPublishers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -222,6 +223,110 @@ class DemoPortfolioControllerTest {
                 """
                 {"question":" "}
                 """).statusCode());
+    }
+
+    @Test
+    void mockMcpNegotiatesProtocolAndListsReadOnlyTools() throws Exception {
+        JsonNode initialized = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {
+                  "jsonrpc":"2.0",
+                  "id":1,
+                  "method":"initialize",
+                  "params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1"}}
+                }
+                """).body());
+        assertEquals("2025-03-26", initialized.path("result").path("protocolVersion").asText());
+        assertTrue(initialized.path("result").path("capabilities").path("tools").isObject());
+
+        JsonNode listed = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {"jsonrpc":"2.0","id":2,"method":"tools/list"}
+                """).body());
+        JsonNode tools = listed.path("result").path("tools");
+        assertEquals(4, tools.size());
+        assertEquals("get_portfolio_summary", tools.get(0).path("name").asText());
+        assertEquals("get_loan_snapshot", tools.get(1).path("name").asText());
+        assertEquals("get_collection_worklist", tools.get(2).path("name").asText());
+        assertEquals("search_approved_knowledge", tools.get(3).path("name").asText());
+        assertTrue(tools.get(2).path("inputSchema").path("properties").path("limit").isObject());
+    }
+
+    @Test
+    void mockMcpCallsAllowlistedToolsAndAuditsWithoutArgumentValues() throws Exception {
+        JsonNode portfolio = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {"jsonrpc":"2.0","id":"portfolio","method":"tools/call","params":{"name":"get_portfolio_summary","arguments":{}}}
+                """).body());
+        JsonNode portfolioResult = portfolio.path("result");
+        assertEquals(false, portfolioResult.path("isError").asBoolean());
+        assertEquals(12, portfolioResult.path("structuredContent").path("activeLoans").asInt());
+        assertTrue(portfolioResult.path("structuredContent").path("par30Percent").isNumber());
+
+        JsonNode loan = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_loan_snapshot","arguments":{"loanId":"LN-002"}}}
+                """).body());
+        assertEquals("LN-002", loan.path("result").path("structuredContent").path("loanId").asText());
+
+        JsonNode worklist = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_collection_worklist","arguments":{"limit":1}}}
+                """).body());
+        assertEquals(1, worklist.path("result").path("structuredContent").path("returnedAccounts").asInt());
+        assertTrue(worklist.path("result").path("structuredContent").path("hasMore").asBoolean());
+
+        JsonNode knowledge = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"search_approved_knowledge","arguments":{"question":"How is PAR 30 calculated?"}}}
+                """).body());
+        assertEquals("ANSWERED", knowledge.path("result").path("structuredContent").path("status").asText());
+        assertEquals("demo-metric-par", knowledge.path("result").path("structuredContent").path("sources").get(0)
+                .path("documentId").asText());
+
+        JsonNode audit = objectMapper.readTree(get("/api/demo/mcp/audit").body());
+        JsonNode latest = audit.get(0);
+        assertEquals("search_approved_knowledge", latest.path("toolName").asText());
+        assertEquals("SUCCESS", latest.path("outcome").asText());
+        assertEquals("question", latest.path("inputFields").get(0).asText());
+        assertFalse(latest.has("arguments"));
+    }
+
+    @Test
+    void mockMcpRejectsInvalidToolArgumentsAndUnknownTools() throws Exception {
+        JsonNode invalidLoan = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_loan_snapshot","arguments":{"loanId":"other"}}}
+                """).body());
+        assertTrue(invalidLoan.path("result").path("isError").asBoolean());
+
+        JsonNode invalidLimit = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_collection_worklist","arguments":{"limit":11}}}
+                """).body());
+        assertTrue(invalidLimit.path("result").path("isError").asBoolean());
+
+        JsonNode unknownTool = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"make_payment","arguments":{}}}
+                """).body());
+        assertTrue(unknownTool.path("result").path("isError").asBoolean());
+
+        JsonNode unknownMethod = objectMapper.readTree(post(
+                "/api/demo/mcp",
+                """
+                {"jsonrpc":"2.0","id":4,"method":"resources/list"}
+                """).body());
+        assertEquals(-32601, unknownMethod.path("error").path("code").asInt());
     }
 
     @Test

@@ -1038,6 +1038,130 @@ h1 {
   font-size: 9px;
 }
 
+.mcp-server-meta strong {
+  margin-left: 4px;
+  color: #42604e;
+}
+
+.mcp-tool-section,
+.mcp-audit-panel {
+  margin-top: 20px;
+}
+
+.mcp-tool-grid { margin-top: 12px; }
+
+.mcp-tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 14px;
+}
+
+.mcp-tool-heading {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mcp-tool-heading h3 {
+  overflow-wrap: anywhere;
+  color: #344b3b;
+  font-size: 12px;
+}
+
+.mcp-tool-heading > span,
+.mcp-error-badge {
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: #eef6f0;
+  color: #4b8060;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.mcp-tool-card > p {
+  margin: 10px 0;
+  color: #77857c;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.mcp-input-label {
+  margin: 3px 0 6px;
+  color: #53665a;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.mcp-input {
+  width: 100%;
+  min-height: 34px;
+  padding: 8px 9px;
+  border: 1px solid #dfe8e1;
+  border-radius: 6px;
+  color: #34443a;
+  font: inherit;
+  font-size: 10px;
+}
+
+.mcp-textarea {
+  resize: vertical;
+}
+
+.mcp-call-button {
+  margin-top: auto;
+  padding: 8px 12px;
+}
+
+.mcp-call-button:disabled,
+.mcp-audit-panel button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.mcp-result-panel,
+.mcp-audit-panel { padding: 16px; }
+.mcp-result-panel pre {
+  max-height: 420px;
+  overflow: auto;
+  margin-top: 12px;
+  padding: 13px;
+  border-radius: 7px;
+  background: #14271f;
+  color: #d3efdb;
+  font-size: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mcp-error-badge {
+  background: #fff0ed;
+  color: #a64e3d;
+}
+
+.mcp-audit-empty { margin-top: 14px; color: #87948b; font-size: 10px; }
+
+.mcp-audit-list { display: grid; gap: 8px; margin-top: 12px; }
+
+.mcp-audit-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  gap: 4px 12px; padding: 10px 12px; border-bottom: 1px solid #e8eee9;
+  font-size: 10px;
+}
+
+.mcp-audit-row strong { color: #42604e; }
+.mcp-audit-row > span { color: #4b8060; font-weight: 650; }
+
+.mcp-audit-row small {
+  grid-column: 1 / -1;
+  color: #89958e;
+  font-size: 9px;
+}
+
 .page-footer {
   display: flex;
   justify-content: space-between;

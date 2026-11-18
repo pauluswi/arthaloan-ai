@@ -87,6 +87,8 @@ bank data to this repository or local showcase.
   same restricted synthetic-data tools; disabled by default.
 - Separate Knowledge RAG page retrieving citations from a curated local
   knowledge base of synthetic metric, policy, and model-limit documents.
+- Separate mock MCP Server page using JSON-RPC to discover and call four
+  allowlisted, read-only tools over synthetic portfolio and policy data.
 - One-command local startup without Docker; Docker Compose is optional.
 
 The portfolio is generated in memory with seed `20261117` and as-of date
@@ -97,6 +99,11 @@ includes performing, overdue, partial-payment, and reversal scenarios.
 The assistant is explicitly simulated: its mock model uses local intent
 matching and response templates, with no external LLM, API key, or network
 call. Portfolio figures come from the backend tools and synthetic data.
+The mock MCP endpoint at `POST /api/demo/mcp` supports initialization,
+tool discovery, and tool calls; `GET /api/demo/mcp/audit` returns the
+bounded in-memory call history without storing argument values. This
+showcases protocol-based tool access, not production authentication or
+banking authorization—MCP itself does not provide those controls.
 The separate Ollama page calls a model on the configured Ollama server only
 when the `ollama` Spring profile is enabled.
 Authentication, interaction persistence, and trained-model predictions are

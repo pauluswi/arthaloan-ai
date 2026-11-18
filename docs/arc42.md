@@ -262,6 +262,16 @@ source excerpts and IDs, and declines when no source matches. A later
 semantic-retrieval iteration can add Ollama embeddings and an in-memory
 vector store without changing the existing assistants.
 
+A separate mock MCP server implements JSON-RPC initialization and
+allowlisted tool discovery/calls at `POST /api/demo/mcp`. Its read-only
+tools expose bounded synthetic portfolio summaries, loan snapshots,
+collection worklist results, and approved demo knowledge retrieval. The
+page displays discovered schemas, results, and a bounded in-memory audit
+trail that records input field names but not values. This demonstrates
+the MCP protocol boundary only: the showcase has no authenticated MCP
+client, caller identity, or production authorization, and MCP does not
+provide banking governance by itself.
+
 ## 7. Deployment View
 
 ### Primary local demo target (no Docker)
