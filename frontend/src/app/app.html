@@ -15,11 +15,10 @@
         <span class="nav-icon" aria-hidden="true">▤</span>
         Loan portfolio
       </button>
-      <span class="nav-item unavailable" aria-disabled="true">
+      <button class="nav-item" [class.active]="view() === 'risk-monitoring'" [attr.aria-current]="view() === 'risk-monitoring' ? 'page' : null" (click)="showRiskMonitoring()">
         <span class="nav-icon" aria-hidden="true">⌁</span>
         Risk monitoring
-        <span class="nav-soon">Soon</span>
-      </span>
+      </button>
       <button class="nav-item" [class.active]="view() === 'collections'" [attr.aria-current]="view() === 'collections' ? 'page' : null" (click)="showCollections()">
         <span class="nav-icon" aria-hidden="true">☷</span>
         Collections
@@ -55,6 +54,7 @@
         @switch (view()) {
           @case ('overview') { Overview }
           @case ('portfolio') { Loan portfolio }
+          @case ('risk-monitoring') { Risk monitoring }
           @case ('collections') { Collections }
           @case ('assistant') { Analytics assistant }
           @case ('ollama') { Spring AI + Ollama }
@@ -243,6 +243,116 @@
           </div>
         } @else {
           <div class="panel state-panel" role="status">Loading portfolio analytics…</div>
+        }
+      } @else if (view() === 'risk-monitoring') {
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">PORTFOLIO RISK SIGNALS</div>
+            <h1>30-day risk monitoring</h1>
+            <p class="page-subtitle">Review rule-based early-warning scores and the current account signals behind them.</p>
+          </div>
+          @if (riskMonitoring(); as monitoring) {
+            <span class="as-of-badge">As of {{ monitoring.asOfDate | date: 'mediumDate' }}</span>
+          }
+        </div>
+
+        <div class="foundation-notice assistant-notice risk-monitoring-notice" role="note">
+          <span class="notice-icon" aria-hidden="true">i</span>
+          <span><strong>Mock prediction signal, not a probability.</strong> The 0–100 points are deterministic rules based on current DPD, recent unpaid installments, and payment reversals. This is not a trained or validated forecast of future repayment.</span>
+        </div>
+
+        @if (riskMonitoringState() === 'loading' || riskMonitoringState() === 'idle') {
+          <div class="panel state-panel" role="status">Calculating demo risk signals…</div>
+        } @else if (riskMonitoringState() === 'error') {
+          <div class="panel state-panel error-state" role="alert">
+            <strong>Risk monitoring unavailable</strong>
+            <span>{{ riskMonitoringError() }}</span>
+            <button class="secondary-button" type="button" (click)="retryRiskMonitoring()">Try again</button>
+          </div>
+        } @else if (riskMonitoring(); as monitoring) {
+          <div class="risk-monitoring-meta">
+            <span>Scoring method <strong>{{ monitoring.modelVersion }}</strong></span>
+            <span>{{ monitoring.scoringMethod }}</span>
+          </div>
+
+          <section class="metrics-grid risk-monitoring-metrics" aria-label="Portfolio risk score summary">
+            <article class="metric-card">
+              <div class="metric-label">Eligible loans</div>
+              <div class="metric-value">{{ monitoring.eligibleLoans }} <span class="metric-unit">/ {{ monitoring.totalLoans }}</span></div>
+              <div class="metric-footnote">Have sufficient snapshot data for this demo score</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label">High signal</div>
+              <div class="metric-value risk-summary-high">{{ monitoring.highRiskLoans }}</div>
+              <div class="metric-footnote">50+ rule points · prioritize human review</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label">Moderate signal</div>
+              <div class="metric-value risk-summary-moderate">{{ monitoring.moderateRiskLoans }}</div>
+              <div class="metric-footnote">25–49 rule points</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label">Low signal</div>
+              <div class="metric-value">{{ monitoring.lowRiskLoans }}</div>
+              <div class="metric-footnote">0–24 rule points</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label">Average score</div>
+              @if (monitoring.averageScore === null) {
+                <div class="metric-value unavailable-value">N/A</div>
+                <div class="metric-footnote">No eligible loans</div>
+              } @else {
+                <div class="metric-value">{{ monitoring.averageScore | number: '1.1-1' }} <span class="metric-unit">/ 100</span></div>
+                <div class="metric-footnote">Rule points, not probability</div>
+              }
+            </article>
+          </section>
+
+          <div class="panel table-panel risk-monitoring-table-panel">
+            <div class="table-scroll">
+              <table class="risk-monitoring-table">
+                <thead>
+                  <tr><th>LOAN / CUSTOMER</th><th>PRODUCT / SEGMENT</th><th>30-DAY SIGNAL</th><th>DPD</th><th>OVERDUE</th><th>CONTRIBUTING FACTORS</th></tr>
+                </thead>
+                <tbody>
+                  @for (loan of monitoring.loans; track loan.loanId) {
+                    <tr>
+                      <td><button class="open-link risk-loan-link" type="button" (click)="openLoan(loan.loanId)">{{ loan.loanId }} <span aria-hidden="true">→</span></button><span class="table-subtext">{{ loan.customerId }}</span></td>
+                      <td>{{ loan.productName }}<span class="table-subtext">{{ loan.segment.replace('_', ' ') }}</span></td>
+                      <td>
+                        @if (loan.status === 'AVAILABLE' && loan.score !== null) {
+                          <span class="risk-band" [class.risk-low]="loan.riskBand === 'LOW'" [class.risk-moderate]="loan.riskBand === 'MODERATE'" [class.risk-high]="loan.riskBand === 'HIGH'">{{ loan.riskBand }} · {{ loan.score }}/100</span>
+                          <div class="risk-score-track risk-monitoring-track" role="img" [attr.aria-label]="loan.score + ' rule points out of 100'">
+                            <span [class.risk-fill-high]="loan.riskBand === 'HIGH'" [class.risk-fill-moderate]="loan.riskBand === 'MODERATE'" [style.width.%]="loan.score"></span>
+                          </div>
+                        } @else {
+                          <span class="risk-band risk-unavailable">UNAVAILABLE</span>
+                          <span class="table-subtext">{{ loan.eligibilityReason }}</span>
+                        }
+                      </td>
+                      <td><span class="dpd-badge" [class.delinquent]="loan.dpd > 0">{{ loan.dpd }} days</span></td>
+                      <td [class.amount-overdue]="loan.overdueAmount > 0">{{ loan.overdueAmount | currency: monitoring.currency : 'symbol' : '1.2-2' }}</td>
+                      <td>
+                        @if (loan.factors.length > 0) {
+                          <details class="risk-monitoring-factors">
+                            <summary>{{ loan.factors.length }} factor{{ loan.factors.length === 1 ? '' : 's' }}</summary>
+                            @for (factor of loan.factors; track factor.name) {
+                              <span><strong>{{ factor.name }}</strong> · {{ factor.observedValue }} · +{{ factor.points }}</span>
+                            }
+                          </details>
+                        } @else {
+                          <span class="table-subtext">No rule factors</span>
+                        }
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr><td class="empty-row" colspan="6">No loan risk results are available.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="table-footnote">Scores are sorted highest first. A high score is a rule-based review signal, not a forecast guarantee or lending decision.</p>
         }
       } @else if (view() === 'portfolio') {
         <div class="page-heading">

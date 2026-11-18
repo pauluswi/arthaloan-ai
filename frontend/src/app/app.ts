@@ -106,6 +106,34 @@ interface LoanRiskPrediction {
   }[];
 }
 
+interface RiskMonitoring {
+  asOfDate: string;
+  currency: string;
+  horizonDays: number;
+  modelVersion: string;
+  scoringMethod: string;
+  totalLoans: number;
+  eligibleLoans: number;
+  lowRiskLoans: number;
+  moderateRiskLoans: number;
+  highRiskLoans: number;
+  averageScore: number | null;
+  loans: {
+    loanId: string;
+    customerId: string;
+    productName: string;
+    segment: string;
+    outstandingPrincipal: number;
+    overdueAmount: number;
+    dpd: number;
+    status: 'AVAILABLE' | 'INELIGIBLE';
+    score: number | null;
+    riskBand: 'LOW' | 'MODERATE' | 'HIGH' | 'UNAVAILABLE';
+    eligibilityReason: string | null;
+    factors: LoanRiskPrediction['factors'];
+  }[];
+}
+
 interface CollectionWorklist {
   asOfDate: string;
   currency: string;
@@ -298,7 +326,7 @@ interface McpAuditEvent {
   recordedAt: string;
 }
 
-type View = 'overview' | 'portfolio' | 'loan-detail' | 'collections' | 'assistant' | 'ollama' | 'rag' | 'mcp';
+type View = 'overview' | 'portfolio' | 'loan-detail' | 'risk-monitoring' | 'collections' | 'assistant' | 'ollama' | 'rag' | 'mcp';
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 @Component({
@@ -319,6 +347,9 @@ export class App implements OnInit {
   protected readonly riskState = signal<LoadState>('idle');
   protected readonly riskError = signal('');
   protected readonly riskRequestLoanId = signal('');
+  protected readonly riskMonitoring = signal<RiskMonitoring | null>(null);
+  protected readonly riskMonitoringState = signal<LoadState>('idle');
+  protected readonly riskMonitoringError = signal('');
   protected readonly collectionWorklist = signal<CollectionWorklist | null>(null);
   protected readonly collectionState = signal<LoadState>('idle');
   protected readonly collectionError = signal('');
@@ -432,6 +463,18 @@ export class App implements OnInit {
     if (this.listState() === 'idle' || this.listState() === 'error') {
       this.loadLoans();
     }
+  }
+
+  protected showRiskMonitoring(): void {
+    this.view.set('risk-monitoring');
+    this.selectedLoan.set(null);
+    if (this.riskMonitoringState() === 'idle' || this.riskMonitoringState() === 'error') {
+      this.loadRiskMonitoring();
+    }
+  }
+
+  protected retryRiskMonitoring(): void {
+    this.loadRiskMonitoring();
   }
 
   protected showCollections(): void {
@@ -890,6 +933,28 @@ export class App implements OnInit {
         if (loans) {
           this.loans.set(loans);
           this.listState.set('ready');
+        }
+      });
+  }
+
+  private loadRiskMonitoring(): void {
+    this.riskMonitoringState.set('loading');
+    this.riskMonitoringError.set('');
+    this.http
+      .get<RiskMonitoring>('/api/demo/risk-monitoring')
+      .pipe(
+        timeout({ first: App.API_TIMEOUT_MS }),
+        catchError(() => {
+          this.riskMonitoringState.set('error');
+          this.riskMonitoringError.set('Portfolio risk signals could not be loaded. Check the API connection and try again.');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((monitoring) => {
+        if (monitoring) {
+          this.riskMonitoring.set(monitoring);
+          this.riskMonitoringState.set('ready');
         }
       });
   }

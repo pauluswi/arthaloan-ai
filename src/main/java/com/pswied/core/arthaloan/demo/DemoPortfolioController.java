@@ -19,6 +19,7 @@ public class DemoPortfolioController {
     private final DemoPortfolioService portfolioService;
     private final LoanInvestigationService loanInvestigationService;
     private final LoanRiskPredictionService riskPredictionService;
+    private final RiskMonitoringService riskMonitoringService;
     private final CollectionWorklistService collectionWorklistService;
     private final CollectionActivityService collectionActivityService;
     private final PortfolioAnalyticsService analyticsService;
@@ -28,6 +29,7 @@ public class DemoPortfolioController {
             DemoPortfolioService portfolioService,
             LoanInvestigationService loanInvestigationService,
             LoanRiskPredictionService riskPredictionService,
+            RiskMonitoringService riskMonitoringService,
             CollectionWorklistService collectionWorklistService,
             CollectionActivityService collectionActivityService,
             PortfolioAnalyticsService analyticsService,
@@ -35,6 +37,7 @@ public class DemoPortfolioController {
         this.portfolioService = portfolioService;
         this.loanInvestigationService = loanInvestigationService;
         this.riskPredictionService = riskPredictionService;
+        this.riskMonitoringService = riskMonitoringService;
         this.collectionWorklistService = collectionWorklistService;
         this.collectionActivityService = collectionActivityService;
         this.analyticsService = analyticsService;
@@ -59,6 +62,11 @@ public class DemoPortfolioController {
     @GetMapping("/loans/{loanId}/risk")
     public LoanRiskPrediction riskPrediction(@PathVariable String loanId) {
         return riskPredictionService.predict(loanId);
+    }
+
+    @GetMapping("/risk-monitoring")
+    public RiskMonitoring riskMonitoring() {
+        return riskMonitoringService.monitoring();
     }
 
     @GetMapping("/loans/{loanId}/collection-activities")

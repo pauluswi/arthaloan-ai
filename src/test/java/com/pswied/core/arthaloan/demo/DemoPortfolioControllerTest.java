@@ -73,6 +73,34 @@ class DemoPortfolioControllerTest {
     }
 
     @Test
+    void exposesPortfolioRiskMonitoringWithExplainableScores() throws Exception {
+        HttpResponse<String> response = get("/api/demo/risk-monitoring");
+        JsonNode monitoring = objectMapper.readTree(response.body());
+
+        assertEquals(200, response.statusCode());
+        assertEquals("2026-10-31", monitoring.path("asOfDate").asText());
+        assertEquals("USD", monitoring.path("currency").asText());
+        assertEquals(30, monitoring.path("horizonDays").asInt());
+        assertEquals("demo-rules-v1", monitoring.path("modelVersion").asText());
+        assertEquals(12, monitoring.path("totalLoans").asInt());
+        assertEquals(12, monitoring.path("eligibleLoans").asInt());
+        assertEquals(
+                monitoring.path("eligibleLoans").asInt(),
+                monitoring.path("lowRiskLoans").asInt()
+                        + monitoring.path("moderateRiskLoans").asInt()
+                        + monitoring.path("highRiskLoans").asInt());
+        assertTrue(monitoring.path("averageScore").isNumber());
+        assertEquals(12, monitoring.path("loans").size());
+        assertTrue(monitoring.path("loans").get(0).path("score").isNumber());
+        assertTrue(monitoring.path("loans").get(0).path("factors").size() > 0);
+        assertTrue(monitoring.path("scoringMethod").asText().contains("not a trained"));
+        for (int index = 1; index < monitoring.path("loans").size(); index++) {
+            assertTrue(monitoring.path("loans").get(index - 1).path("score").asInt()
+                    >= monitoring.path("loans").get(index).path("score").asInt());
+        }
+    }
+
+    @Test
     void exposesRankedCollectionWorklist() throws Exception {
         HttpResponse<String> response = get("/api/demo/collections/worklist");
         JsonNode worklist = objectMapper.readTree(response.body());

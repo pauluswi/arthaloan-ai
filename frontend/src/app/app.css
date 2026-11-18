@@ -1532,6 +1532,77 @@ td > strong {
   border-color: #e7eee9;
 }
 
+.risk-monitoring-notice {
+  margin-bottom: 14px;
+}
+
+.risk-monitoring-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 18px;
+  margin: 0 0 14px;
+  color: #78867e;
+  font-size: 10px;
+}
+
+.risk-monitoring-meta strong {
+  color: #42604e;
+}
+
+.risk-monitoring-metrics {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.risk-summary-high {
+  color: #ae4c43 !important;
+}
+
+.risk-summary-moderate {
+  color: #a56a2e !important;
+}
+
+.risk-monitoring-table-panel {
+  padding: 0;
+}
+
+.risk-monitoring-table {
+  min-width: 930px;
+}
+
+.risk-loan-link {
+  display: block;
+  padding-left: 0;
+}
+
+.risk-monitoring-track {
+  width: 84px;
+  height: 5px;
+  margin-top: 6px;
+}
+
+.risk-monitoring-factors {
+  min-width: 130px;
+  color: #617168;
+  font-size: 9px;
+}
+
+.risk-monitoring-factors summary {
+  cursor: pointer;
+  color: #42604e;
+  font-weight: 600;
+}
+
+.risk-monitoring-factors > span {
+  display: block;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+
+.risk-monitoring-factors strong {
+  color: #52675a;
+}
+
 .risk-heading {
   display: flex;
   align-items: start;
@@ -1874,6 +1945,10 @@ td > strong {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .risk-monitoring-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .detail-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2006,6 +2081,10 @@ td > strong {
   }
 
   .analytics-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .risk-monitoring-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

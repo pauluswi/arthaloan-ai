@@ -82,10 +82,14 @@ customer segment, region, and loan status.
 
 `GET /api/demo/loans/{loanId}/risk` returns a deterministic rule score
 for an active loan with at least one installment due by the snapshot
-date. It includes the snapshot date, 30-day horizon, demo rule version,
-eligibility status, score band, and the contributing factors. It is not
-a trained model, calibrated probability, or a recommendation to take
-action.
+date. `GET /api/demo/risk-monitoring` applies the same rules across the
+portfolio and returns band counts, average score, and the per-loan
+factors sorted from highest score to lowest. It includes the snapshot
+date, 30-day horizon, demo rule version, and eligibility status.
+
+The score is an illustrative early-warning signal for the showcase, not
+an empirically validated forecast of future repayment. It is not a
+trained model, calibrated probability, or recommendation to take action.
 
 The score adds up to 100 points from observable snapshot evidence:
 

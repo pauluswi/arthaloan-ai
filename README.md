@@ -82,8 +82,9 @@ default demo.
   installment schedules, payment allocations, reversals, DPD, and
   outstanding balances.
 - **Risk monitoring** — deterministic, explainable 30-day demo scores.
-  These are rule-based examples, not trained models or calibrated
-  probabilities.
+  The portfolio screen summarizes risk bands and exposes each loan's
+  score factors. These are rule-based examples, not trained models,
+  calibrated probabilities, or validated forecasts.
 - **Collections** — a versioned, ranked worklist with visible priority
   factors, plus simulated collection activity recording. No contact is
   sent and no action is taken automatically.
@@ -194,6 +195,7 @@ docker compose up --build
 | `GET /api/demo/analytics` | Portfolio metrics and trends, with optional filters. |
 | `GET /api/demo/loans` and `GET /api/demo/loans/{loanId}` | Loan list and investigation details. |
 | `GET /api/demo/loans/{loanId}/risk` | Illustrative deterministic risk score. |
+| `GET /api/demo/risk-monitoring` | Portfolio-wide mock risk scores, risk bands, and contributing factors. |
 | `GET /api/demo/collections/worklist` | Ranked synthetic collection worklist. |
 | `POST /api/demo/assistant/ask` | Simulated analytics assistant. |
 | `GET /api/demo/rag/knowledge` and `POST /api/demo/rag/ask` | Curated knowledge sources and mock RAG retrieval. |
