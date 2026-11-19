@@ -20,40 +20,61 @@ not add real customer or confidential banking data.
 
 ```mermaid
 flowchart LR
-    U[Demo user] --> UI[Angular demo UI]
-    UI --> API[Spring Boot API]
-    DATA[(Synthetic portfolio)]
-    API --> DATA
+    USER[Demo user] --> BROWSER
 
-    API --> ANA[Analytics and loan services]
-    API --> COL[Collection worklist]
-    API --> SCORE[Explainable risk rules]
-    UI -->|Risk monitoring page| SCORE
-    COL --> SCORE
+    subgraph APP["ArthaLoan AI · single Spring Boot application"]
+        BROWSER[Angular UI<br/>risk monitoring · loan detail · demo pages]
+        API[REST API]
+        DATA[(In-memory<br/>synthetic portfolio)]
+        ANALYTICS[Portfolio analytics<br/>and loan investigation]
+        RISK[Explainable risk rules<br/>0–100 demo score]
+        COLLECTIONS[Collection worklist]
+        SIM[Simulated assistant]
+        RAG[Mock knowledge retrieval<br/>keyword match + citations]
+        KNOWLEDGE[(Curated synthetic<br/>knowledge)]
+        MCP[Mock MCP server<br/>JSON-RPC tools]
+        SPRINGAI[Optional Spring AI<br/>Ollama client]
+        SESSION[(In-memory collection<br/>activities and MCP audit)]
 
-    UI -->|Simulated assistant page| SIM[Mock assistant]
-    SIM --> ANA
-    SIM --> COL
+        BROWSER -->|REST / HTTP| API
+        API --> ANALYTICS
+        API --> RISK
+        API --> COLLECTIONS
+        API --> SIM
+        API --> RAG
+        API -->|JSON-RPC| MCP
+        API -->|ollama profile only| SPRINGAI
 
-    UI -->|Optional Ollama page| OLL[Spring AI + local Ollama]
-    OLL --> ANA
-    OLL --> COL
+        ANALYTICS --> DATA
+        COLLECTIONS -->|risk points| RISK
+        RISK -->|loan snapshot lookup| ANALYTICS
+        SIM --> ANALYTICS
+        SIM --> COLLECTIONS
+        SPRINGAI -->|restricted tools| ANALYTICS
+        SPRINGAI --> COLLECTIONS
+        RAG --> KNOWLEDGE
+        MCP --> ANALYTICS
+        MCP --> COLLECTIONS
+        MCP --> RAG
+        API --> SESSION
+        MCP --> SESSION
+    end
 
-    UI -->|Knowledge RAG page| RAG[Local keyword retrieval]
-    RAG --> KB[(Curated demo knowledge)]
-
-    UI -->|MCP tools page| MCP[Mock MCP server<br/>JSON-RPC]
-    MCP --> ANA
-    MCP --> COL
-    MCP --> RAG
+    SPRINGAI -->|local model request| OLLAMA[Ollama server<br/>local LLM · optional]
 ```
 
-The assistant, optional Ollama, RAG, and MCP are separate demos sharing
-backend capabilities. The simulated assistant and Ollama can call
-analytics and collection tools; the RAG page retrieves cited local
-knowledge. The MCP page demonstrates discovering and calling read-only
-tools, including knowledge search—it is **not currently connected as an
-MCP client to the Ollama agent**. Everything uses synthetic data.
+Risk monitoring and loan investigation read the same generated,
+in-memory portfolio through the backend. The risk rules produce
+explainable demo points from current DPD, recent unpaid installments, and
+payment reversals; they do **not** estimate a validated future outcome
+or probability. The collection worklist also uses this risk signal.
+
+The simulated assistant, optional Spring AI + Ollama, local keyword RAG,
+and mock MCP server are distinct backend capabilities. RAG returns
+citations but does not call an LLM. MCP exposes allowlisted read-only
+tools to its demo UI; it is **not connected as an MCP client to the
+Ollama agent**. Ollama runs separately and is contacted only when the
+`ollama` Spring profile is enabled. All data shown is synthetic.
 
 ## Run the demo
 
